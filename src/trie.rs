@@ -10,4 +10,3 @@ struct Trie {
     positions: Vec<NodeIndex>
 }
 
-impl
