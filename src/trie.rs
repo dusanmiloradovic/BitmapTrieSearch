@@ -2,8 +2,8 @@ use crate::encoding::idx;
 #[derive(Clone)]
 struct NodeIndex {
     index: u32,                 //0 termination
-    restOfWord: Option<String>, // only for terminated
-    dictionaryIndex: u32, // 0 for no index -> if terminated, this is a link to an actual dictionary entry
+    rest_of_word: Option<String>, // only for terminated
+    dictionary_index: u32, // 0 for no index -> if terminated, this is a link to an actual dictionary entry
 }
 
 // TODO add types of dictionary entries
