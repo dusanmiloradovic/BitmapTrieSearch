@@ -5,6 +5,8 @@ struct NodeIndex {
     dictionary_index: u32, // 0 for no index -> if terminated, this is a link to an actual dictionary entry
 }
 
+const MAX_DIRECT_ENTRIES: usize = 5;
+
 // TODO add types of dictionary entries
 #[derive(Clone)]
 struct TrieEntryG {
@@ -61,37 +63,30 @@ impl Trie {
     }
 
     pub fn add_word(&mut self, word: &str) {
-        let mut nextRow: usize = 0; //
+        let mut nextRow: usize = 0;
+        let mut currRow: usize = 0;
+        let mut currCol: usize = 0;
         let mut prevRow: usize = 0;
         let mut prevCol: usize = 0;
+        let mut should_update_prev_row = false;
+        let mut should_update_curr_row = false;
         for (i, c) in word.chars().enumerate() {
             let char_idx = idx(c);
-            // For first char, it has to be in the first row
-            if self.0.is_empty() {
+            prevRow = currRow;
+            prevCol = currCol;
+            should_update_prev_row = should_update_curr_row;
+            should_update_curr_row = false;
+            if nextRow == 0 {
                 let v = vec![(char_idx, None)];
                 let t = TrieEntryV(v);
                 self.0.push(TrieEntry::TrieEntryV(t));
-                prevRow = nextRow;
-                nextRow = 0;
+                should_update_curr_row = true;
+                currRow = self.0.len() - 1;
+                currCol = 0;
             } else {
-                if nextRow == 0 {
-                    let v = vec![(char_idx, None)];
-                    let t = TrieEntryV(v);
-                    self.0.push(TrieEntry::TrieEntryV(t));
-                    nextRow = self.0.len() - 1;
-                    if i == 0 {
-                        continue;
-                    }
-                    let prev_entry = &mut self.0[prevRow];
-                    match prev_entry {
-                        TrieEntry::TrieEntryV(v) => {
-                            v.0[prevCol].1 = Some(NodeIndex { index: nextRow as u32, dictionary_index: 0 });
-                        }
-                        _ => {}
-                    }
-                }
-
-                let entry = &mut self.0[0];
+                currRow = nextRow;
+                nextRow = 0;
+                let entry = &mut self.0[currRow];
                 match entry {
                     TrieEntry::TrieEntryV(v) => {
                         let mut found = false;
@@ -100,20 +95,33 @@ impl Trie {
                                 found = true;
                                 if let Some(node) = &z.1 {
                                     nextRow = node.index as usize;
-                                    prevCol = j;
+                                    currCol = j;
                                 }
-                                continue;
                             }
                         }
                         if !found {
                             v.0.push((char_idx, None));
-                            prevCol = v.0.len() - 1;
-                            prevRow = nextRow;
-                            nextRow = 0; //
+                            should_update_curr_row = true;
+                            currCol = v.0.len() - 1;
+                            // TODO after currCol = 5 , migrate to TrieEntryG
                         }
                     }
                     _ => {}
                 }
+            }
+            // For first char, it has to be in the first row
+            if currRow == 0 || !should_update_prev_row {
+                continue;
+            }
+            let previous_entry = &mut self.0[prevRow];
+            match previous_entry {
+                TrieEntry::TrieEntryV(v) => {
+                    let previous_node = &mut v.0[prevCol].1;
+                    if let Some(node) = previous_node {
+                        node.index = currRow as u32;
+                    }
+                }
+                _ => {}
             }
         }
     }
