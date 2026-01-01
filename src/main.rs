@@ -9,5 +9,5 @@ fn main() {
     t.add_word("dragana");
     t.add_word("draganovic");
     t.add_word("dulitl");
-    print!("{:?}",t);
+    print!("{:#?}",t);
 }
