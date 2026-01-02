@@ -2,8 +2,9 @@ use crate::encoding::{CHARS, idx};
 use std::fmt;
 #[derive(Clone, Debug, Copy)]
 struct NodeIndex {
-    index: u32,            //0 termination
+    index: u32,            //0 - leaf node
     dictionary_index: u32, // 0 for no index -> if terminated, this is a link to an actual dictionary entry
+    terminated: bool,      // it can be terminated for one word, and still continue in the trie
 }
 
 const MAX_DIRECT_ENTRIES: usize = 5;
@@ -16,7 +17,6 @@ struct TrieEntryG {
 }
 
 struct TrieEntryV(Vec<(u8, Option<NodeIndex>)>);
-
 
 impl fmt::Debug for TrieEntryV {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -31,10 +31,10 @@ impl fmt::Debug for TrieEntryV {
     }
 }
 
-trait TrieEntryOp{
-    fn find(&self, c:char) -> Option<Option<NodeIndex>>;
-    fn add(&mut self, c:char, ni:Option<NodeIndex>);
-    fn update(&mut self, c:char, ni:Option<NodeIndex>);
+trait TrieEntryOp {
+    fn find(&self, c: char) -> Option<Option<NodeIndex>>;
+    fn add(&mut self, c: char, ni: Option<NodeIndex>);
+    fn update(&mut self, c: char, ni: Option<NodeIndex>);
 }
 
 #[derive(Debug)]
@@ -44,7 +44,7 @@ enum TrieEntry {
 }
 
 impl TrieEntryOp for TrieEntry {
-    fn find(&self, c:char) -> Option<Option<NodeIndex>> {
+    fn find(&self, c: char) -> Option<Option<NodeIndex>> {
         let char_idx = idx(c);
         match self {
             TrieEntry::TrieEntryV(v) => {
@@ -55,7 +55,7 @@ impl TrieEntryOp for TrieEntry {
                     }
                 }
                 None
-            },
+            }
             TrieEntry::TrieEntryG(v) => {
                 // For TrieEntryG, if it is in the bitmap, it exists
                 if (v.bitmap & (1u64 << char_idx)) != 0 {
@@ -69,14 +69,14 @@ impl TrieEntryOp for TrieEntry {
 
     fn add(&mut self, c: char, ni: Option<NodeIndex>) {
         match self {
-            TrieEntry::TrieEntryV(v) => {v.0.push((idx(c), ni))}
+            TrieEntry::TrieEntryV(v) => v.0.push((idx(c), ni)),
             _ => {} // TODO
         }
     }
 
     fn update(&mut self, c: char, ni: Option<NodeIndex>) {
         let ix = idx(c);
-        match self{
+        match self {
             TrieEntry::TrieEntryV(v) => {
                 for vv in v.0.iter_mut() {
                     if vv.0 == ix {
@@ -136,38 +136,57 @@ impl Trie {
     }
 
     pub fn add_word(&mut self, word: &str) {
-        let mut curr_row=0;
-        let mut prev_row= 0;
-        let mut should_add =false;
-        let mut prev_c:char = 0 as char;
+        let mut curr_row = 0;
+        let mut prev_row = 0;
+        let mut should_add = false;
+        let mut prev_c: char = 0 as char;
         // once we add the new entry, all the leaf nodes will have to be created anew
-        for (i,c) in word.chars().enumerate() {
-            if should_add{
-                let v = vec![(idx(c), None)];
+        let word_len = word.chars().count();
+        for (i, c) in word.chars().enumerate() {
+            let terminated = i == word_len - 1;
+
+            if should_add {
+                let v = vec![(
+                    idx(c),
+                    Some(NodeIndex {
+                        index: 0,
+                        dictionary_index: 0,
+                        terminated,
+                    }),
+                )];
                 let tt = TrieEntryV(v);
                 self.0.push(TrieEntry::TrieEntryV(tt));
                 let position = self.0.len() as u32 - 1;
-                let ni = Some(NodeIndex{index:position,dictionary_index:0});
+                let ni = Some(NodeIndex {
+                    index: position,
+                    dictionary_index: 0,
+                    terminated: false,
+                });
                 self.0[prev_row].update(prev_c, ni);
-                prev_c =c;
+                prev_c = c;
                 prev_row = position as usize;
                 continue;
             }
-            prev_c =c;
+            prev_c = c;
             prev_row = curr_row;
             let entry = &mut self.0[curr_row];
             let existing = entry.find(c);
-            if let Some(inner_option) = existing {
-                if let Some(node) = inner_option {
+            if let Some(col) = existing {
+                if let Some(node) = col {
                     prev_row = curr_row;
                     curr_row = node.index as usize;
                     continue;
                 } else {
-                    should_add = true; 
+                    should_add = true;
                 }
             } else {
                 should_add = true;
-                entry.add(c, None);
+                let ni = Some(NodeIndex {
+                    index: 0,
+                    dictionary_index: 0,
+                    terminated,
+                });
+                entry.add(c, ni);
             }
         }
     }
