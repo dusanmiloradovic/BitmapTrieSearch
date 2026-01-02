@@ -16,7 +16,7 @@ struct TrieEntryG {
     positions: Vec<NodeIndex>,
 }
 
-struct TrieEntryV(Vec<(u8, Option<NodeIndex>)>);
+struct TrieEntryV(Vec<(u8, NodeIndex)>);
 
 impl fmt::Debug for TrieEntryV {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -32,9 +32,9 @@ impl fmt::Debug for TrieEntryV {
 }
 
 trait TrieEntryOp {
-    fn find(&self, c: char) -> Option<Option<NodeIndex>>;
-    fn add(&mut self, c: char, ni: Option<NodeIndex>);
-    fn update(&mut self, c: char, ni: Option<NodeIndex>);
+    fn find(&self, c: char) -> Option<NodeIndex>;
+    fn add(&mut self, c: char, ni: NodeIndex);
+    fn update(&mut self, c: char, ni: NodeIndex);
 }
 
 #[derive(Debug)]
@@ -44,7 +44,7 @@ enum TrieEntry {
 }
 
 impl TrieEntryOp for TrieEntry {
-    fn find(&self, c: char) -> Option<Option<NodeIndex>> {
+    fn find(&self, c: char) -> Option<NodeIndex> {
         let char_idx = idx(c);
         match self {
             TrieEntry::TrieEntryV(v) => {
@@ -59,7 +59,7 @@ impl TrieEntryOp for TrieEntry {
             TrieEntry::TrieEntryG(v) => {
                 // For TrieEntryG, if it is in the bitmap, it exists
                 if (v.bitmap & (1u64 << char_idx)) != 0 {
-                    Some(v.get(char_idx).copied())
+                    v.get(char_idx).copied()
                 } else {
                     None
                 }
@@ -67,14 +67,14 @@ impl TrieEntryOp for TrieEntry {
         }
     }
 
-    fn add(&mut self, c: char, ni: Option<NodeIndex>) {
+    fn add(&mut self, c: char, ni: NodeIndex) {
         match self {
             TrieEntry::TrieEntryV(v) => v.0.push((idx(c), ni)),
             _ => {} // TODO
         }
     }
 
-    fn update(&mut self, c: char, ni: Option<NodeIndex>) {
+    fn update(&mut self, c: char, ni: NodeIndex) {
         let ix = idx(c);
         match self {
             TrieEntry::TrieEntryV(v) => {
@@ -129,7 +129,14 @@ pub struct Trie(Vec<TrieEntry>);
 impl Trie {
     pub fn new() -> Self {
         let mut t = Trie(Vec::new());
-        let v = vec![(0, None)]; //root node
+        let v = vec![(
+            0,
+            NodeIndex {
+                index: 0,
+                dictionary_index: 0,
+                terminated: false,
+            },
+        )]; //root node
         let tt = TrieEntryV(v);
         t.0.push(TrieEntry::TrieEntryV(tt));
         t
@@ -148,20 +155,20 @@ impl Trie {
             if should_add {
                 let v = vec![(
                     idx(c),
-                    Some(NodeIndex {
+                    NodeIndex {
                         index: 0,
                         dictionary_index: 0,
                         terminated,
-                    }),
+                    },
                 )];
                 let tt = TrieEntryV(v);
                 self.0.push(TrieEntry::TrieEntryV(tt));
                 let position = self.0.len() as u32 - 1;
-                let ni = Some(NodeIndex {
+                let ni = NodeIndex {
                     index: position,
                     dictionary_index: 0,
                     terminated: false,
-                });
+                };
                 self.0[prev_row].update(prev_c, ni);
                 prev_c = c;
                 prev_row = position as usize;
@@ -171,8 +178,8 @@ impl Trie {
             prev_row = curr_row;
             let entry = &mut self.0[curr_row];
             let existing = entry.find(c);
-            if let Some(col) = existing {
-                if let Some(node) = col {
+            if let Some(node) = existing {
+                if node.index != 0 {
                     prev_row = curr_row;
                     curr_row = node.index as usize;
                     continue;
@@ -181,11 +188,11 @@ impl Trie {
                 }
             } else {
                 should_add = true;
-                let ni = Some(NodeIndex {
+                let ni = NodeIndex {
                     index: 0,
                     dictionary_index: 0,
                     terminated,
-                });
+                };
                 entry.add(c, ni);
             }
         }
