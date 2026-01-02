@@ -130,9 +130,7 @@ impl Trie {
 
     pub fn add_word(&mut self, word: &str) {
         let mut curr_row=0;
-        let mut next_row = 0;
         let mut prev_row= 0;
-        let mut update_prev = false;
         let mut should_add =false;
         let mut prev_c:char = 0 as char;
         // once we add the new entry, all the leaf nodes will have to be created anew
@@ -144,19 +142,17 @@ impl Trie {
                 let position = self.0.len() as u32 - 1;
                 let ni = Some(NodeIndex{index:position,dictionary_index:0});
                 self.0[prev_row].update(prev_c, ni);
-                print!("For {}, updating prev {}\n", c, prev_c);
                 prev_c =c;
                 prev_row = position as usize;
                 continue;
             }
             prev_c =c;
-            update_prev = false;
             prev_row = curr_row;
-            curr_row = next_row;
             let entry = &mut self.0[curr_row];
             let existing = entry.find(c);
             if let Some(node) = existing {
-                next_row = node.index as usize;
+                prev_row = curr_row;
+                curr_row = node.index as usize;
                 continue;
             } else {
                 should_add = true;
