@@ -146,6 +146,7 @@ impl Trie {
                 self.0[prev_row].update(prev_c, ni);
                 print!("For {}, updating prev {}\n", c, prev_c);
                 prev_c =c;
+                prev_row = position as usize;
                 continue;
             }
             prev_c =c;
@@ -163,5 +164,5 @@ impl Trie {
             }
         }
     }
-    
+
 }
