@@ -145,6 +145,7 @@ impl Trie {
                 let ni = Some(NodeIndex{index:position,dictionary_index:0});
                 self.0[prev_row].update(prev_c, ni);
                 prev_c =c;
+                prev_row = position as usize;
                 continue;
             }
             prev_c =c;
@@ -162,5 +163,5 @@ impl Trie {
             }
         }
     }
-    
+
 }
