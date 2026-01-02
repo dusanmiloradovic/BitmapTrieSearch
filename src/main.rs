@@ -3,8 +3,8 @@ mod encoding;
 
 fn main() {
     let mut t = trie::Trie::new();
-    t.add_word("dusan");
     t.add_word("dusana");
+    t.add_word("dusan");
     t.add_word("dejan");
     t.add_word("dragan");
     t.add_word("dragana");

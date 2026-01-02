@@ -34,7 +34,8 @@ impl fmt::Debug for TrieEntryV {
 trait TrieEntryOp {
     fn find(&self, c: char) -> Option<NodeIndex>;
     fn add(&mut self, c: char, ni: NodeIndex);
-    fn update(&mut self, c: char, ni: NodeIndex);
+    fn update_index(&mut self, c: char, index: u32);
+    fn update_terminated(&mut self, c: char, terminated: bool);
 }
 
 #[derive(Debug)]
@@ -74,12 +75,31 @@ impl TrieEntryOp for TrieEntry {
         }
     }
 
-    fn update(&mut self, c: char, ni: NodeIndex) {
+    fn update_index(&mut self, c: char, index: u32) {
         let ix = idx(c);
         match self {
             TrieEntry::TrieEntryV(v) => {
                 for vv in v.0.iter_mut() {
                     if vv.0 == ix {
+                        let mut ni = vv.1;
+                        ni.index = index;
+                        vv.1 = ni;
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    fn update_terminated(&mut self, c: char, terminated: bool) {
+        // TODO add the optional dictionary index here
+        let ix = idx(c);
+        match self {
+            TrieEntry::TrieEntryV(v) => {
+                for vv in v.0.iter_mut() {
+                    if vv.0 == ix {
+                        let mut ni = vv.1;
+                        ni.terminated = terminated;
                         vv.1 = ni;
                     }
                 }
@@ -164,12 +184,7 @@ impl Trie {
                 let tt = TrieEntryV(v);
                 self.0.push(TrieEntry::TrieEntryV(tt));
                 let position = self.0.len() as u32 - 1;
-                let ni = NodeIndex {
-                    index: position,
-                    dictionary_index: 0,
-                    terminated: false,
-                };
-                self.0[prev_row].update(prev_c, ni);
+                self.0[prev_row].update_index(prev_c, position);
                 prev_c = c;
                 prev_row = position as usize;
                 continue;
@@ -179,6 +194,9 @@ impl Trie {
             let entry = &mut self.0[curr_row];
             let existing = entry.find(c);
             if let Some(node) = existing {
+                if terminated {
+                    entry.update_terminated(c, true);
+                }
                 if node.index != 0 {
                     prev_row = curr_row;
                     curr_row = node.index as usize;
