@@ -12,5 +12,6 @@ fn main() {
     t.add_word("dulitl");
     t.add_word("srecko");
     t.add_word("sreten");
+    t.add_word("sretenka");
     print!("{:#?}",t);
 }

@@ -32,7 +32,7 @@ impl fmt::Debug for TrieEntryV {
 }
 
 trait TrieEntryOp{
-    fn find(&self, c:char) -> Option<NodeIndex>;
+    fn find(&self, c:char) -> Option<Option<NodeIndex>>;
     fn add(&mut self, c:char, ni:Option<NodeIndex>);
     fn update(&mut self, c:char, ni:Option<NodeIndex>);
 }
@@ -44,19 +44,26 @@ enum TrieEntry {
 }
 
 impl TrieEntryOp for TrieEntry {
-    fn find(&self, c:char) -> Option<NodeIndex> {
+    fn find(&self, c:char) -> Option<Option<NodeIndex>> {
         let char_idx = idx(c);
         match self {
             TrieEntry::TrieEntryV(v) => {
                 let m = &v.0;
-                for vv in m.into_iter() {
+                for vv in m.iter() {
                     if vv.0 == char_idx {
-                        return vv.1;
+                        return Some(vv.1);
                     }
                 }
-                return None;
+                None
             },
-            TrieEntry::TrieEntryG(v) => {None} // TODO
+            TrieEntry::TrieEntryG(v) => {
+                // For TrieEntryG, if it is in the bitmap, it exists
+                if (v.bitmap & (1u64 << char_idx)) != 0 {
+                    Some(v.get(char_idx).copied())
+                } else {
+                    None
+                }
+            }
         }
     }
 
@@ -150,15 +157,18 @@ impl Trie {
             prev_row = curr_row;
             let entry = &mut self.0[curr_row];
             let existing = entry.find(c);
-            if let Some(node) = existing {
-                prev_row = curr_row;
-                curr_row = node.index as usize;
-                continue;
+            if let Some(inner_option) = existing {
+                if let Some(node) = inner_option {
+                    prev_row = curr_row;
+                    curr_row = node.index as usize;
+                    continue;
+                } else {
+                    should_add = true; 
+                }
             } else {
                 should_add = true;
                 entry.add(c, None);
             }
         }
     }
-
 }
