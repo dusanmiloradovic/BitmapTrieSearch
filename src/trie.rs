@@ -10,7 +10,7 @@ struct NodeIndex {
 const MAX_DIRECT_ENTRIES: usize = 5;
 
 // TODO add types of dictionary entries
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 struct TrieEntryG {
     bitmap: u64,
     positions: Vec<NodeIndex>,
@@ -26,6 +26,21 @@ impl fmt::Debug for TrieEntryV {
         for (i, z) in r.iter().enumerate() {
             let c = CHARS.chars().nth(z.0 as usize).unwrap();
             write!(f, "({},{:?})", c, z.1)?;
+        }
+        write!(f, "]")
+    }
+}
+
+impl fmt::Debug for TrieEntryG {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "TrieEntryG: [")?;
+        for i in 0..64{
+            let bit = self.bitmap & (1 << i);
+            if bit != 0 {
+                let c = CHARS.chars().nth(i as usize).unwrap();
+                let z = self.get(i as u8).unwrap();
+                write!(f, "({},{:?}),", c, z)?;
+            }
         }
         write!(f, "]")
     }
@@ -71,7 +86,9 @@ impl TrieEntryOp for TrieEntry {
     fn add(&mut self, c: char, ni: NodeIndex) {
         match self {
             TrieEntry::TrieEntryV(v) => v.0.push((idx(c), ni)),
-            _ => {} // TODO
+            TrieEntry::TrieEntryG(g) => {
+                g.insert_at(idx(c), ni);
+            }
         }
     }
 
@@ -87,7 +104,24 @@ impl TrieEntryOp for TrieEntry {
                     }
                 }
             }
-            _ => {}
+            TrieEntry::TrieEntryG(g) => {
+                let pos = idx(c);
+                match g.get(pos){
+                    Some(ni)=>{
+                        let mut nim = *ni;
+                        nim.index=index;
+                        g.insert_at(pos,nim);
+                    },
+                    None=>{
+                        let ni = NodeIndex{
+                            index,
+                            terminated: false,
+                            dictionary_index:0
+                        };
+                        g.insert_at(pos, ni);
+                    }
+                }
+            }
         }
     }
 
@@ -104,7 +138,13 @@ impl TrieEntryOp for TrieEntry {
                     }
                 }
             }
-            _ => {}
+            TrieEntry::TrieEntryG(g) => {
+                if let Some(ni) = g.get(ix) {
+                    let mut nim = *ni;
+                    nim.terminated = terminated;
+                    g.insert_at(ix, nim);
+                }
+            }
         }
     }
 }
@@ -140,6 +180,18 @@ impl TrieEntryG {
             bitmap: 0,
             positions: Vec::new(),
         }
+    }
+
+    pub fn promote(trieEntry: &TrieEntryV) -> Self {
+        let mut entry = TrieEntryG {
+            bitmap: 0,
+            positions: Vec::new(),
+        };
+        for r in &trieEntry.0 {
+            let (c, node) = r;
+            entry.insert_at(*c, *node);
+        }
+        entry
     }
 }
 
@@ -212,6 +264,12 @@ impl Trie {
                     terminated,
                 };
                 entry.add(c, ni);
+                if let TrieEntry::TrieEntryV(v) = entry {
+                    if v.0.len() >= MAX_DIRECT_ENTRIES {
+                        let promoted = TrieEntryG::promote(v);
+                        self.0[curr_row] = TrieEntry::TrieEntryG(promoted);
+                    }
+                }
             }
         }
     }

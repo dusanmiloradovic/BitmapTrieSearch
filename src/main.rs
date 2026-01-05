@@ -13,5 +13,8 @@ fn main() {
     t.add_word("srecko");
     t.add_word("sreten");
     t.add_word("sretenka");
+    t.add_word("petar");
+    t.add_word("vepar");
+    t.add_word("nepar");
     print!("{:#?}",t);
 }
