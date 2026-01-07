@@ -8,6 +8,7 @@ struct NodeIndex {
 }
 
 const MAX_DIRECT_ENTRIES: usize = 5;
+const MAX_SEARCH_RESULTS: usize = 10;
 
 // TODO add types of dictionary entries
 #[derive(Clone)]
@@ -17,6 +18,11 @@ struct TrieEntryG {
 }
 
 struct TrieEntryV(Vec<(u8, NodeIndex)>);
+
+pub struct TrieSearchResult {
+    word: String,
+    dictionary_index: u32,
+}
 
 impl fmt::Debug for TrieEntryV {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -34,7 +40,7 @@ impl fmt::Debug for TrieEntryV {
 impl fmt::Debug for TrieEntryG {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "TrieEntryG: [")?;
-        for i in 0..64{
+        for i in 0..64 {
             let bit = self.bitmap & (1 << i);
             if bit != 0 {
                 let c = CHARS.chars().nth(i as usize).unwrap();
@@ -51,6 +57,7 @@ trait TrieEntryOp {
     fn add(&mut self, c: char, ni: NodeIndex);
     fn update_index(&mut self, c: char, index: u32);
     fn update_terminated(&mut self, c: char, terminated: bool);
+    fn get_all(&self) -> Vec<(char, NodeIndex)>;
 }
 
 #[derive(Debug)]
@@ -106,17 +113,17 @@ impl TrieEntryOp for TrieEntry {
             }
             TrieEntry::TrieEntryG(g) => {
                 let pos = idx(c);
-                match g.get(pos){
-                    Some(ni)=>{
+                match g.get(pos) {
+                    Some(ni) => {
                         let mut nim = *ni;
-                        nim.index=index;
-                        g.insert_at(pos,nim);
-                    },
-                    None=>{
-                        let ni = NodeIndex{
+                        nim.index = index;
+                        g.insert_at(pos, nim);
+                    }
+                    None => {
+                        let ni = NodeIndex {
                             index,
                             terminated: false,
-                            dictionary_index:0
+                            dictionary_index: 0,
                         };
                         g.insert_at(pos, ni);
                     }
@@ -146,6 +153,29 @@ impl TrieEntryOp for TrieEntry {
                 }
             }
         }
+    }
+
+    fn get_all(&self) -> Vec<(char, NodeIndex)> {
+        let mut ret: Vec<(char, NodeIndex)> = Vec::new();
+        match self {
+            TrieEntry::TrieEntryV(v) => {
+                for x in v.0.iter() {
+                    let c = CHARS.chars().nth(x.0 as usize).unwrap();
+                    ret.push((c, x.1));
+                }
+            }
+            TrieEntry::TrieEntryG(g) => {
+                for i in 0..64 {
+                    let bit = g.bitmap & (1 << i);
+                    if bit != 0 {
+                        let c = CHARS.chars().nth(i as usize).unwrap();
+                        let z = g.get(i as u8).unwrap();
+                        ret.push((c, *z));
+                    }
+                }
+            }
+        }
+        ret
     }
 }
 
@@ -272,5 +302,54 @@ impl Trie {
                 }
             }
         }
+    }
+    pub fn search(&self, term: &str) -> Vec<TrieSearchResult> {
+        let mut res = Vec::new();
+        let mut curr_row = 0;
+        for c in term.chars() {
+            let entry = self.0[curr_row].find(c);
+            match entry {
+                None => return res,
+                Some(ni) => {
+                    if ni.terminated {
+                        res.push(TrieSearchResult {
+                            word: term.to_string(),
+                            dictionary_index: ni.dictionary_index,
+                        });
+                    }
+                    curr_row = ni.index as usize;
+                }
+            }
+            // if any word was found it will be in the return vector, from here return all the children (filtered with terminated)
+        }
+        let entry = &self.0[curr_row];
+        let children = entry.get_all();
+        let mut bfs_stack:Vec<(String,NodeIndex)> = Vec::new();
+        for (c, ni) in children {
+            let w = term.to_string() + &c.to_string();
+            bfs_stack.push((w,ni));
+        }
+        while bfs_stack.len() > 0 && res.len() < MAX_SEARCH_RESULTS {
+           let e =  bfs_stack.pop();
+            match e {
+               None => break,
+               Some((w,ni)) => {
+                   if ni.terminated {
+                       res.push(TrieSearchResult {
+                           word: w.clone(),
+                           dictionary_index: ni.dictionary_index,
+                       });
+                       if ni.index != 0 {
+                           let entry = &self.0[ni.index as usize];
+                           let children = entry.get_all();
+                           for (c, ni) in children {
+                               bfs_stack.push((w.to_string() + &c.to_string(),ni));
+                           }
+                       }
+                   }
+               }
+            }
+        }
+        res
     }
 }
