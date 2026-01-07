@@ -19,6 +19,7 @@ struct TrieEntryG {
 
 struct TrieEntryV(Vec<(u8, NodeIndex)>);
 
+#[derive(Debug)]
 pub struct TrieSearchResult {
     word: String,
     dictionary_index: u32,
@@ -339,7 +340,8 @@ impl Trie {
                            word: w.clone(),
                            dictionary_index: ni.dictionary_index,
                        });
-                       if ni.index != 0 {
+                   }
+                   if ni.index != 0 {
                            let entry = &self.0[ni.index as usize];
                            let children = entry.get_all();
                            for (c, ni) in children {
@@ -348,7 +350,7 @@ impl Trie {
                        }
                    }
                }
-            }
+
         }
         res
     }

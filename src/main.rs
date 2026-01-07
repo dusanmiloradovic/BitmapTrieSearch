@@ -16,5 +16,6 @@ fn main() {
     t.add_word("petar");
     t.add_word("vepar");
     t.add_word("nepar");
-    print!("{:#?}",t);
+    let p = t.search("SR");
+    print!("{:#?}", p);
 }
