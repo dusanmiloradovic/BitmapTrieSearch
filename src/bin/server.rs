@@ -1,5 +1,7 @@
-mod trie;
-mod encoding;
+use bitmap_trie::command::{Command, Response, SearchCommand};
+use bitmap_trie::listener;
+use bitmap_trie::trie;
+use serde_json;
 
 fn main() {
     let mut t = trie::Trie::new();
@@ -17,5 +19,12 @@ fn main() {
     t.add_word("vepar");
     t.add_word("nepar");
     let p = t.search("SR");
-    print!("{:#?}", p);
+    print!("{:#?}\n", p);
+    let c = Command::Search(SearchCommand {
+        trieId: "1".to_string(),
+        term: "SR".to_string(),
+    });
+    let s = serde_json::to_string(&c).unwrap();
+    println!("{}\n", s);
+    // listener::listen().expect("TODO: panic message");
 }

@@ -1,6 +1,16 @@
 [package]
-name = "BitmapTrie"
+name = "bitmap_trie"
 version = "0.1.0"
 edition = "2024"
 
+[[bin]]
+name = "server"
+path = "src/bin/server.rs"
+
+[[bin]]
+name = "client"
+path = "src/bin/client.rs"
+
 [dependencies]
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.149"

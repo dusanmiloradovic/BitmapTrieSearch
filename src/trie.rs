@@ -21,8 +21,8 @@ struct TrieEntryV(Vec<(u8, NodeIndex)>);
 
 #[derive(Debug)]
 pub struct TrieSearchResult {
-    word: String,
-    dictionary_index: u32,
+    pub word: String,
+    pub dictionary_index: u32,
 }
 
 impl fmt::Debug for TrieEntryV {
