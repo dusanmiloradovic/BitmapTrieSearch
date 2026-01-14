@@ -3,14 +3,14 @@ use crate::access::TrieMap;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AddWordCommand {
-    pub trieId: String,
+    pub trie_id: String,
     pub word: String,
     pub dictionary: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SearchCommand {
-    pub trieId: String,
+    pub trie_id: String,
     pub term: String,
 }
 

@@ -37,12 +37,12 @@ fn handle_client(stream: TcpStream, cloned_arc: & Arc<RwLock<TrieMap>>) {
             let response = match command {
                 AddWord(ad_w)=> {
                     let mut w = cloned_arc.write().unwrap();
-                    w.add_word(&ad_w.trieId,&ad_w.word);
+                    w.add_word(&ad_w.trie_id,&ad_w.word);
                     Response::AddWord(AddWordResponse { success: true, error: None })
                 },
                 Search(search_command)=>{
                     let r = cloned_arc.read().unwrap();
-                    let res= r.search(&search_command.trieId,&search_command.term);
+                    let res= r.search(&search_command.trie_id,&search_command.term);
                     match res{
                         None=>Response::Search(SearchResponse{results: vec![], error: Some("No results".to_string())}),
                         Some(r)=>{
