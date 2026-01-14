@@ -29,11 +29,8 @@ pub fn listen() -> std::io::Result<()> {
 fn handle_client(stream: TcpStream, cloned_arc: & Arc<RwLock<TrieMap>>) {
         let reader = BufReader::new(&stream);
         let mut deserializer = serde_json::Deserializer::from_reader(reader);
-        let mut serializer = serde_json::Serializer::new(&stream);
-
         // This allows handling multiple commands sent over the same connection
         while let Ok(command) = Command::deserialize(&mut deserializer) {
-            println!("Received: {:?}", command);
             let response = match command {
                 AddWord(ad_w)=> {
                     let mut w = cloned_arc.write().unwrap();
@@ -52,6 +49,8 @@ fn handle_client(stream: TcpStream, cloned_arc: & Arc<RwLock<TrieMap>>) {
                     }
                 },
             };
+            let mut serializer = serde_json::Serializer::new(&stream);
             response.serialize(&mut serializer).unwrap();
+            serializer.into_inner().flush().unwrap();
         }
     }
