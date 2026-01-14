@@ -39,23 +39,3 @@ pub enum Response {
 pub trait CommandHandler {
     fn handle(&mut self, command: Command) -> Response;
 }
-
-impl CommandHandler for TrieMap {
-    fn handle(&mut self, command: Command) -> Response {
-        match command {
-            Command::AddWord(w) => {
-                self.add_word(&w.trieId, &w.word);
-                Response::AddWord(AddWordResponse { success: true, error: None })
-            }
-            Command::Search(s)=>{
-                match self.search(&s.trieId, &s.term){
-                    None => Response::Search(SearchResponse{results: vec![], error: Some("No results".to_string())}),
-                    Some(r)=>{
-                       let b:Vec<(String,String)>=  r.iter().map(|x| (x.word.clone(),"".to_string())).collect();
-                        Response::Search(SearchResponse{results: b, error: None})
-                    }
-                }
-            }
-        }
-    }
-}
