@@ -1,10 +1,23 @@
 use crate::encoding::{CHARS, idx};
+use std::collections::HashMap;
 use std::fmt;
+/*
+This is the Trie implementation for contextual search with efficient memory usage and fast lookups.
+The primary use case is autocomplete search in context.
+Each Trie is registered for one type of data. The structure of data is not enforced, but its assumed
+that it can be decomposed into attributes. For example, if a backend structure is JSON {Name, Email, Phone, Address},
+the client decides which attributes to make searchable , and put them in Trie.
+We store a record with the actual data in a dictionary entry.
+Since each word can have multiple dictionary entries (for example, two users named John Doe, both pointing
+to different dictionary entry), each terminated word in TrieEntry can point to multiple dictionaries.
+To make trie implementation efficient, we need to make the leaf node simple and implement Copy trait,
+so the dictionary will be indirect.
+In node index we store the address of of dictionary entries, and from there we do the lookup.
+ */
 #[derive(Clone, Debug, Copy)]
 struct NodeIndex {
-    index: u32,            //0 - leaf node
-    dictionary_index: u32, // 0 for no index -> if terminated, this is a link to an actual dictionary entry
-    terminated: bool,      // it can be terminated for one word, and still continue in the trie
+    index: u32,       //0 - leaf node
+    terminated: bool, // it can be terminated for one word, and still continue in the trie
 }
 
 const MAX_DIRECT_ENTRIES: usize = 5;
@@ -30,7 +43,7 @@ impl fmt::Debug for TrieEntryV {
         // Here we can choose to hide the actual data
         let r = &self.0;
         write!(f, "TrieEntryV: [")?;
-        for (i, z) in r.iter().enumerate() {
+        for (_, z) in r.iter().enumerate() {
             let c = CHARS.chars().nth(z.0 as usize).unwrap();
             write!(f, "({},{:?})", c, z.1)?;
         }
@@ -124,7 +137,6 @@ impl TrieEntryOp for TrieEntry {
                         let ni = NodeIndex {
                             index,
                             terminated: false,
-                            dictionary_index: 0,
                         };
                         g.insert_at(pos, ni);
                     }
@@ -213,12 +225,12 @@ impl TrieEntryG {
         }
     }
 
-    pub fn promote(trieEntry: &TrieEntryV) -> Self {
+    pub fn promote(trie_entry: &TrieEntryV) -> Self {
         let mut entry = TrieEntryG {
             bitmap: 0,
             positions: Vec::new(),
         };
-        for r in &trieEntry.0 {
+        for r in &trie_entry.0 {
             let (c, node) = r;
             entry.insert_at(*c, *node);
         }
@@ -227,21 +239,35 @@ impl TrieEntryG {
 }
 
 #[derive(Debug)]
-pub struct Trie(Vec<TrieEntry>);
+struct DictionaryMapEntry {
+    attribute: u8,
+    entries: Vec<u32>, // each terminated word in trie can point to multiple dictionary entries
+}
+#[derive(Debug)]
+pub struct Trie {
+    trie_entries: Vec<TrieEntry>,
+    dictionary_map: Vec<DictionaryMapEntry>,
+    attribute_lookup: HashMap<String, u8>, //compress DictionaryMapEntry
+    attribute_lookup_reverse: HashMap<u8, String>,
+}
 
 impl Trie {
     pub fn new() -> Self {
-        let mut t = Trie(Vec::new());
+        let mut t = Trie {
+            trie_entries: Vec::new(),
+            dictionary_map: vec![],
+            attribute_lookup: Default::default(),
+            attribute_lookup_reverse: Default::default(),
+        };
         let v = vec![(
             0,
             NodeIndex {
                 index: 0,
-                dictionary_index: 0,
                 terminated: false,
             },
         )]; //root node
         let tt = TrieEntryV(v);
-        t.0.push(TrieEntry::TrieEntryV(tt));
+        t.trie_entries.push(TrieEntry::TrieEntryV(tt));
         t
     }
 
@@ -260,21 +286,20 @@ impl Trie {
                     idx(c),
                     NodeIndex {
                         index: 0,
-                        dictionary_index: 0,
                         terminated,
                     },
                 )];
                 let tt = TrieEntryV(v);
-                self.0.push(TrieEntry::TrieEntryV(tt));
-                let position = self.0.len() as u32 - 1;
-                self.0[prev_row].update_index(prev_c, position);
+                self.trie_entries.push(TrieEntry::TrieEntryV(tt));
+                let position = self.trie_entries.len() as u32 - 1;
+                self.trie_entries[prev_row].update_index(prev_c, position);
                 prev_c = c;
                 prev_row = position as usize;
                 continue;
             }
             prev_c = c;
             prev_row = curr_row;
-            let entry = &mut self.0[curr_row];
+            let entry = &mut self.trie_entries[curr_row];
             let existing = entry.find(c);
             if let Some(node) = existing {
                 if terminated {
@@ -291,14 +316,13 @@ impl Trie {
                 should_add = true;
                 let ni = NodeIndex {
                     index: 0,
-                    dictionary_index: 0,
                     terminated,
                 };
                 entry.add(c, ni);
                 if let TrieEntry::TrieEntryV(v) = entry {
                     if v.0.len() >= MAX_DIRECT_ENTRIES {
                         let promoted = TrieEntryG::promote(v);
-                        self.0[curr_row] = TrieEntry::TrieEntryG(promoted);
+                        self.trie_entries[curr_row] = TrieEntry::TrieEntryG(promoted);
                     }
                 }
             }
@@ -308,14 +332,14 @@ impl Trie {
         let mut res = Vec::new();
         let mut curr_row = 0;
         for c in term.chars() {
-            let entry = self.0[curr_row].find(c);
+            let entry = self.trie_entries[curr_row].find(c);
             match entry {
                 None => return res,
                 Some(ni) => {
                     if ni.terminated {
                         res.push(TrieSearchResult {
                             word: term.to_string(),
-                            dictionary_index: ni.dictionary_index,
+                            dictionary_index: 0, //TODO
                         });
                     }
                     curr_row = ni.index as usize;
@@ -323,34 +347,33 @@ impl Trie {
             }
             // if any word was found it will be in the return vector, from here return all the children (filtered with terminated)
         }
-        let entry = &self.0[curr_row];
+        let entry = &self.trie_entries[curr_row];
         let children = entry.get_all();
-        let mut bfs_stack:Vec<(String,NodeIndex)> = Vec::new();
+        let mut bfs_stack: Vec<(String, NodeIndex)> = Vec::new();
         for (c, ni) in children {
             let w = term.to_string() + &c.to_string();
-            bfs_stack.push((w,ni));
+            bfs_stack.push((w, ni));
         }
         while bfs_stack.len() > 0 && res.len() < MAX_SEARCH_RESULTS {
-           let e =  bfs_stack.pop();
+            let e = bfs_stack.pop();
             match e {
-               None => break,
-               Some((w,ni)) => {
-                   if ni.terminated {
-                       res.push(TrieSearchResult {
-                           word: w.clone(),
-                           dictionary_index: ni.dictionary_index,
-                       });
-                   }
-                   if ni.index != 0 {
-                           let entry = &self.0[ni.index as usize];
-                           let children = entry.get_all();
-                           for (c, ni) in children {
-                               bfs_stack.push((w.to_string() + &c.to_string(),ni));
-                           }
-                       }
-                   }
-               }
-
+                None => break,
+                Some((w, ni)) => {
+                    if ni.terminated {
+                        res.push(TrieSearchResult {
+                            word: w.clone(),
+                            dictionary_index: 0, // TODO search should give multiple dictionaries if doable
+                        });
+                    }
+                    if ni.index != 0 {
+                        let entry = &self.trie_entries[ni.index as usize];
+                        let children = entry.get_all();
+                        for (c, ni) in children {
+                            bfs_stack.push((w.to_string() + &c.to_string(), ni));
+                        }
+                    }
+                }
+            }
         }
         res
     }
