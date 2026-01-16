@@ -18,12 +18,14 @@ In node index we store the address of of dictionary entries, and from there we d
 struct NodeIndex {
     index: u32,       //0 - leaf node
     terminated: bool, // it can be terminated for one word, and still continue in the trie
+    dictionary_map_index:u32, // once terminated, the index to dictionary.
+    // TODO no point keeping both terminated and trie_map_index, since every terminated will point to
+    // dictionary map
 }
 
 const MAX_DIRECT_ENTRIES: usize = 5;
 const MAX_SEARCH_RESULTS: usize = 10;
 
-// TODO add types of dictionary entries
 #[derive(Clone)]
 struct TrieEntryG {
     bitmap: u64,
@@ -137,6 +139,7 @@ impl TrieEntryOp for TrieEntry {
                         let ni = NodeIndex {
                             index,
                             terminated: false,
+                            dictionary_map_index: 0,
                         };
                         g.insert_at(pos, ni);
                     }
@@ -239,14 +242,31 @@ impl TrieEntryG {
 }
 
 #[derive(Debug)]
+struct DictionaryEntry{
+    entry: String,
+    map_entries: Vec<u32>, // for deletion (nodes will be deleted only if they don't have any reference to dictionary)
+}
+
+#[derive(Debug)]
 struct DictionaryMapEntry {
     attribute: u8,
     entries: Vec<u32>, // each terminated word in trie can point to multiple dictionary entries
+    node_index: u32, // for deletion(maybe store all the node ids from the trie up to here in a
+    //list to avoid having to store the previous node id in NodeIndex)
 }
+/*
+Deletion: we will always from Trie by the whole dictionary entry
+First we will search the dictionary for exact match, delete it and find related dictionary map entry
+Then, we remove that index from entries vector
+If the entries vector is empty after that, we get the leaf node from the dictionary map entry
+and then traverse up to the top to remove the node from trie
+ */
+
 #[derive(Debug)]
 pub struct Trie {
     trie_entries: Vec<TrieEntry>,
-    dictionary_map: Vec<DictionaryMapEntry>,
+    dictionary_map: Vec<DictionaryMapEntry>, //1 NodeIndex to many DictionaryEntry
+    dictionary: Vec<DictionaryEntry>,
     attribute_lookup: HashMap<String, u8>, //compress DictionaryMapEntry
     attribute_lookup_reverse: HashMap<u8, String>,
 }
@@ -256,6 +276,7 @@ impl Trie {
         let mut t = Trie {
             trie_entries: Vec::new(),
             dictionary_map: vec![],
+            dictionary: vec![],
             attribute_lookup: Default::default(),
             attribute_lookup_reverse: Default::default(),
         };
@@ -264,6 +285,7 @@ impl Trie {
             NodeIndex {
                 index: 0,
                 terminated: false,
+                dictionary_map_index: 0,
             },
         )]; //root node
         let tt = TrieEntryV(v);
@@ -287,6 +309,7 @@ impl Trie {
                     NodeIndex {
                         index: 0,
                         terminated,
+                        dictionary_map_index: 0,
                     },
                 )];
                 let tt = TrieEntryV(v);
@@ -317,6 +340,7 @@ impl Trie {
                 let ni = NodeIndex {
                     index: 0,
                     terminated,
+                    dictionary_map_index:0,
                 };
                 entry.add(c, ni);
                 if let TrieEntry::TrieEntryV(v) = entry {
