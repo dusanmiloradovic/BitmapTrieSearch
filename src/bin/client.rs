@@ -45,6 +45,7 @@ fn main() {
     add_word_client(&stream,"1","petar");
     add_word_client(&stream,"1","vepar");
     add_word_client(&stream,"1","nepar");
-    search_term_client(&stream,"1","DR");
+    add_word_client(&stream,"1","dragan milutinovic milutinac");
+    search_term_client(&stream,"1","DRAGAN MI");
 
 }
