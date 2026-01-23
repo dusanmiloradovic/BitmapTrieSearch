@@ -5,7 +5,7 @@ use crate::encoding::{CHARS, idx};
 use std::collections::HashMap;
 use std::fmt;
 /*
-This is the Trie implementation for contextual search with efficient memory usage and fast lookups.
+This is the Trie implementation for contextual search.
 The primary use case is autocomplete search in context.
 Each Trie is registered for one type of data. The structure of data is not enforced, but its assumed
 that it can be decomposed into attributes. For example, if a backend structure is JSON {Name, Email, Phone, Address},
@@ -15,7 +15,7 @@ Since each word can have multiple dictionary entries (for example, two users nam
 to different dictionary entry), each terminated word in TrieEntry can point to multiple dictionaries.
 To make trie implementation efficient, we need to make the leaf node simple and implement Copy trait,
 so the dictionary will be indirect.
-In node index we store the address of of dictionary entries, and from there we do the lookup.
+In node index we store the address of dictionary entries, and from there we do the lookup.
  */
 #[derive(Clone, Debug, Copy)]
 struct NodeIndex {
@@ -330,6 +330,8 @@ impl Trie {
             if let Some(node) = existing {
                 if terminated {
                     entry.update_terminated(c, true);
+                }else{
+                    entry.update_terminated(c, false);
                 }
                 if node.index != 0 {
                     prev_row = curr_row;
