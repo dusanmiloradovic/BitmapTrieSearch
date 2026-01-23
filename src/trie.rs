@@ -1,3 +1,6 @@
+#[cfg(test)]
+mod test;
+
 use crate::encoding::{CHARS, idx};
 use std::collections::HashMap;
 use std::fmt;
