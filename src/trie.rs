@@ -37,6 +37,7 @@ struct TrieEntryG {
 struct TrieEntryV(Vec<(u8, NodeIndex)>);
 
 #[derive(Debug,Clone)]
+#[derive(Eq,PartialEq,Ord, PartialOrd)]
 struct DictionaryMapEntry {
     entries: Vec<(u32,u8)>,
     // each terminated word in trie maps to one dictionary entry and one attribute (if no attribute, use default attribute 0)
@@ -311,9 +312,14 @@ impl Trie {
         let mut prev_c: char = 0 as char;
         // once we add the new entry, all the leaf nodes will have to be created anew
         let word_len = word.chars().count();
+        let mut should_update_dictionary = false;
         for (i, c) in word.chars().enumerate() {
             let terminated = i == word_len - 1;
 
+            if should_update_dictionary {
+                self.update_dictionary_entry(curr_row,dictionary_index,dictionary_attribute);
+            }
+            should_update_dictionary =  false;
             if should_add {
                 let v = vec![(
                     idx(c),
@@ -328,15 +334,21 @@ impl Trie {
                 self.trie_entries[prev_row].update_index(prev_c, position);
                 prev_c = c;
                 prev_row = position as usize;
+                curr_row = self.trie_entries.len() - 1;
+                if terminated {
+                    self.update_dictionary_entry(curr_row,dictionary_index,dictionary_attribute);
+                }
                 continue;
             }
             prev_c = c;
             prev_row = curr_row;
             let entry = &mut self.trie_entries[curr_row];
             let existing = entry.find(c);
+
             if let Some(node) = existing {
                 if terminated {
                     entry.update_terminated(c, true);
+                   should_update_dictionary = true;
 
                 }else{
                     entry.update_terminated(c, false);
@@ -354,6 +366,9 @@ impl Trie {
                     index: 0,
                     terminated,
                 };
+                if terminated {
+                    should_update_dictionary = true;
+                }
                 entry.add(c, ni);
                 if let TrieEntry::TrieEntryV(v) = entry {
                     if v.0.len() >= MAX_DIRECT_ENTRIES {
@@ -362,9 +377,7 @@ impl Trie {
                     }
                 }
             }
-            if terminated {
-                self.update_dictionary_entry(curr_row,dictionary_index,dictionary_attribute);
-            }
+
         }
     }
     pub fn search(&self, term: &str) -> Vec<TrieSearchResult> {
@@ -375,8 +388,8 @@ impl Trie {
             match entry {
                 None => return res,
                 Some(ni) => {
+                    curr_row = ni.index as usize;
                     if ni.terminated {
-                        curr_row = ni.index as usize;
                         if let Some(entries) = self.dictionary_map.get(&curr_row) {
                             res.push(TrieSearchResult {
                                 word: term.to_string(),
@@ -402,13 +415,14 @@ impl Trie {
                 None => break,
                 Some((w, ni)) => {
                     if ni.terminated {
-                        curr_row = ni.index as usize;
                         if let Some(entries) = self.dictionary_map.get(&curr_row) {
                             res.push(TrieSearchResult {
                                 word: w.clone(),
-                                entries: entries.clone(), // TODO search should give multiple dictionaries if doable
+                                entries: entries.clone(),
                             });
                         }
+                    }else{
+                        curr_row = ni.index as usize;
                     }
                     if ni.index != 0 {
                         let entry = &self.trie_entries[ni.index as usize];
