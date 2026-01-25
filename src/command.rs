@@ -6,6 +6,8 @@ pub struct AddWordCommand {
     pub trie_id: String,
     pub word: String,
     pub dictionary: String,
+    pub dictionary_index: u32,
+    pub dictionary_attribute: u8,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

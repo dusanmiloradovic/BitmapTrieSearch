@@ -21,7 +21,6 @@ In node index we store the address of dictionary entries, and from there we do t
 struct NodeIndex {
     index: u32,       //0 - leaf node
     terminated: bool, // it can be terminated for one word, and still continue in the trie
-    dictionary_map_index:u32, // once terminated, the index to dictionary.
     // TODO no point keeping both terminated and trie_map_index, since every terminated will point to
     // dictionary map
 }
@@ -37,10 +36,17 @@ struct TrieEntryG {
 
 struct TrieEntryV(Vec<(u8, NodeIndex)>);
 
+#[derive(Debug,Clone)]
+struct DictionaryMapEntry {
+    entries: Vec<(u32,u8)>,
+    // each terminated word in trie maps to one dictionary entry and one attribute (if no attribute, use default attribute 0)
+    // attribute is expected as u8, the dictionary itself should keep the mapping of attributes(if there is one)
+}
+
 #[derive(Debug)]
 pub struct TrieSearchResult {
     pub word: String,
-    pub dictionary_index: u32,
+    pub entries: DictionaryMapEntry,
 }
 
 impl fmt::Debug for TrieEntryV {
@@ -142,7 +148,6 @@ impl TrieEntryOp for TrieEntry {
                         let ni = NodeIndex {
                             index,
                             terminated: false,
-                            dictionary_map_index: 0,
                         };
                         g.insert_at(pos, ni);
                     }
@@ -244,19 +249,8 @@ impl TrieEntryG {
     }
 }
 
-#[derive(Debug)]
-struct DictionaryEntry{
-    entry: String,
-    map_entries: Vec<u32>, // for deletion (nodes will be deleted only if they don't have any reference to dictionary)
-}
 
-#[derive(Debug)]
-struct DictionaryMapEntry {
-    attribute: u8,
-    entries: Vec<u32>, // each terminated word in trie can point to multiple dictionary entries
-    node_index: u32, // for deletion(maybe store all the node ids from the trie up to here in a
-    //list to avoid having to store the previous node id in NodeIndex)
-}
+
 /*
 Deletion: we will always from Trie by the whole dictionary entry
 First we will search the dictionary for exact match, delete it and find related dictionary map entry
@@ -268,27 +262,22 @@ and then traverse up to the top to remove the node from trie
 #[derive(Debug)]
 pub struct Trie {
     trie_entries: Vec<TrieEntry>,
-    dictionary_map: Vec<DictionaryMapEntry>, //1 NodeIndex to many DictionaryEntry
-    dictionary: Vec<DictionaryEntry>,
-    attribute_lookup: HashMap<String, u8>, //compress DictionaryMapEntry
-    attribute_lookup_reverse: HashMap<u8, String>,
+    dictionary_map: HashMap<usize,DictionaryMapEntry>, //One NodeIndex to many DictionaryEntries (+ attribute)
 }
+
+// dictionary will keep the map of attributes, the
 
 impl Trie {
     pub fn new() -> Self {
         let mut t = Trie {
             trie_entries: Vec::new(),
-            dictionary_map: vec![],
-            dictionary: vec![],
-            attribute_lookup: Default::default(),
-            attribute_lookup_reverse: Default::default(),
+            dictionary_map: HashMap::new(),
         };
         let v = vec![(
             0,
             NodeIndex {
                 index: 0,
                 terminated: false,
-                dictionary_map_index: 0,
             },
         )]; //root node
         let tt = TrieEntryV(v);
@@ -296,7 +285,26 @@ impl Trie {
         t
     }
 
-    pub fn add_word(&mut self, word: &str) {
+    fn update_dictionary_entry(&mut self, curr_row: usize, dictionary_index: u32, dictionary_attribute:  u8){
+        let v = self.dictionary_map.get_mut(&curr_row);
+        match v{
+            Some(e) => {
+                let  v= &mut e.entries;
+                for vv in v.iter_mut(){
+                    if vv.0 == dictionary_index && vv.1 == dictionary_attribute{
+                        return;
+                    }
+                }
+                v.push((dictionary_index,dictionary_attribute));
+            }
+            None => {
+                let e = DictionaryMapEntry { entries: vec![(dictionary_index,dictionary_attribute)] };
+                self.dictionary_map.insert(curr_row,e);
+            }
+        }
+    }
+
+    pub fn add_word(&mut self, word: &str, dictionary_index: u32, dictionary_attribute:u8) {
         let mut curr_row = 0;
         let mut prev_row = 0;
         let mut should_add = false;
@@ -312,7 +320,6 @@ impl Trie {
                     NodeIndex {
                         index: 0,
                         terminated,
-                        dictionary_map_index: 0,
                     },
                 )];
                 let tt = TrieEntryV(v);
@@ -330,6 +337,7 @@ impl Trie {
             if let Some(node) = existing {
                 if terminated {
                     entry.update_terminated(c, true);
+
                 }else{
                     entry.update_terminated(c, false);
                 }
@@ -345,7 +353,6 @@ impl Trie {
                 let ni = NodeIndex {
                     index: 0,
                     terminated,
-                    dictionary_map_index:0,
                 };
                 entry.add(c, ni);
                 if let TrieEntry::TrieEntryV(v) = entry {
@@ -354,6 +361,9 @@ impl Trie {
                         self.trie_entries[curr_row] = TrieEntry::TrieEntryG(promoted);
                     }
                 }
+            }
+            if terminated {
+                self.update_dictionary_entry(curr_row,dictionary_index,dictionary_attribute);
             }
         }
     }
@@ -366,12 +376,15 @@ impl Trie {
                 None => return res,
                 Some(ni) => {
                     if ni.terminated {
-                        res.push(TrieSearchResult {
-                            word: term.to_string(),
-                            dictionary_index: 0, //TODO
-                        });
+                        curr_row = ni.index as usize;
+                        if let Some(entries) = self.dictionary_map.get(&curr_row) {
+                            res.push(TrieSearchResult {
+                                word: term.to_string(),
+                                entries: entries.clone(),
+                            });
+                        }
                     }
-                    curr_row = ni.index as usize;
+
                 }
             }
             // if any word was found it will be in the return vector, from here return all the children (filtered with terminated)
@@ -389,10 +402,13 @@ impl Trie {
                 None => break,
                 Some((w, ni)) => {
                     if ni.terminated {
-                        res.push(TrieSearchResult {
-                            word: w.clone(),
-                            dictionary_index: 0, // TODO search should give multiple dictionaries if doable
-                        });
+                        curr_row = ni.index as usize;
+                        if let Some(entries) = self.dictionary_map.get(&curr_row) {
+                            res.push(TrieSearchResult {
+                                word: w.clone(),
+                                entries: entries.clone(), // TODO search should give multiple dictionaries if doable
+                            });
+                        }
                     }
                     if ni.index != 0 {
                         let entry = &self.trie_entries[ni.index as usize];

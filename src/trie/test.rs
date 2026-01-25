@@ -2,11 +2,11 @@ use super::*;
 
 fn prepare_trie()->Trie{
    let mut t =  Trie::new();
-    t.add_word("dragan");
-    t.add_word("dragana");
-    t.add_word("drni");
-    t.add_word("dusan");
-    t.add_word("nepar");
+    t.add_word("dragan", 0, 0);
+    t.add_word("dragana",1,0);
+    t.add_word("drni",2,0);
+    t.add_word("dusan",3,0);
+    t.add_word("nepar",4,0);
     t
 }
 #[test]
@@ -20,7 +20,7 @@ fn test_add() {
 #[test]
 fn test_word_with_parent() {
     let mut t = prepare_trie();
-    t.add_word("dragan miocinovic");
+    t.add_word("dragan miocinovic",5,0);
     let p = t.search("DRAGAN M").iter().map(|x| x.word.clone()).collect::<Vec<String>>();
     let t = vec!["DRAGAN MIOCINOVIC".to_string()];
     assert_eq!(p, t);
