@@ -19,10 +19,10 @@ In node index we store the address of dictionary entries, and from there we do t
  */
 #[derive(Clone, Debug, Copy)]
 struct NodeIndex {
-    index: u32,       //0 - leaf node
+    index: u32, //0 - leaf node
     terminated: bool, // it can be terminated for one word, and still continue in the trie
-    // TODO no point keeping both terminated and trie_map_index, since every terminated will point to
-    // dictionary map
+                // TODO no point keeping both terminated and trie_map_index, since every terminated will point to
+                // dictionary map
 }
 
 const MAX_DIRECT_ENTRIES: usize = 5;
@@ -36,10 +36,9 @@ struct TrieEntryG {
 
 struct TrieEntryV(Vec<(u8, NodeIndex)>);
 
-#[derive(Debug,Clone)]
-#[derive(Eq,PartialEq,Ord, PartialOrd)]
+#[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
 struct DictionaryMapEntry {
-    entries: Vec<(u32,u8)>,
+    entries: Vec<(u32, u8)>,
     // each terminated word in trie maps to one dictionary entry and one attribute (if no attribute, use default attribute 0)
     // attribute is expected as u8, the dictionary itself should keep the mapping of attributes(if there is one)
 }
@@ -250,8 +249,6 @@ impl TrieEntryG {
     }
 }
 
-
-
 /*
 Deletion: we will always from Trie by the whole dictionary entry
 First we will search the dictionary for exact match, delete it and find related dictionary map entry
@@ -263,7 +260,7 @@ and then traverse up to the top to remove the node from trie
 #[derive(Debug)]
 pub struct Trie {
     trie_entries: Vec<TrieEntry>,
-    dictionary_map: HashMap<usize,DictionaryMapEntry>, //One NodeIndex to many DictionaryEntries (+ attribute)
+    dictionary_map: HashMap<usize, DictionaryMapEntry>, //One NodeIndex to many DictionaryEntries (+ attribute)
 }
 
 // dictionary will keep the map of attributes, the
@@ -286,26 +283,33 @@ impl Trie {
         t
     }
 
-    fn update_dictionary_entry(&mut self, curr_row: usize, dictionary_index: u32, dictionary_attribute:  u8){
+    fn update_dictionary_entry(
+        &mut self,
+        curr_row: usize,
+        dictionary_index: u32,
+        dictionary_attribute: u8,
+    ) {
         let v = self.dictionary_map.get_mut(&curr_row);
-        match v{
+        match v {
             Some(e) => {
-                let  v= &mut e.entries;
-                for vv in v.iter_mut(){
-                    if vv.0 == dictionary_index && vv.1 == dictionary_attribute{
+                let v = &mut e.entries;
+                for vv in v.iter_mut() {
+                    if vv.0 == dictionary_index && vv.1 == dictionary_attribute {
                         return;
                     }
                 }
-                v.push((dictionary_index,dictionary_attribute));
+                v.push((dictionary_index, dictionary_attribute));
             }
             None => {
-                let e = DictionaryMapEntry { entries: vec![(dictionary_index,dictionary_attribute)] };
-                self.dictionary_map.insert(curr_row,e);
+                let e = DictionaryMapEntry {
+                    entries: vec![(dictionary_index, dictionary_attribute)],
+                };
+                self.dictionary_map.insert(curr_row, e);
             }
         }
     }
 
-    pub fn add_word(&mut self, word: &str, dictionary_index: u32, dictionary_attribute:u8) {
+    pub fn add_word(&mut self, word: &str, dictionary_index: u32, dictionary_attribute: u8) {
         let mut curr_row = 0;
         let mut prev_row = 0;
         let mut should_add = false;
@@ -317,9 +321,9 @@ impl Trie {
             let terminated = i == word_len - 1;
 
             if should_update_dictionary {
-                self.update_dictionary_entry(curr_row,dictionary_index,dictionary_attribute);
+                self.update_dictionary_entry(curr_row, dictionary_index, dictionary_attribute);
             }
-            should_update_dictionary =  false;
+            should_update_dictionary = false;
             if should_add {
                 let v = vec![(
                     idx(c),
@@ -336,7 +340,7 @@ impl Trie {
                 prev_row = position as usize;
                 curr_row = self.trie_entries.len() - 1;
                 if terminated {
-                    self.update_dictionary_entry(curr_row,dictionary_index,dictionary_attribute);
+                    self.update_dictionary_entry(curr_row, dictionary_index, dictionary_attribute);
                 }
                 continue;
             }
@@ -348,8 +352,7 @@ impl Trie {
             if let Some(node) = existing {
                 if terminated {
                     entry.update_terminated(c, true);
-                   should_update_dictionary = true;
-
+                    should_update_dictionary = true;
                 }
                 if node.index != 0 {
                     prev_row = curr_row;
@@ -375,28 +378,15 @@ impl Trie {
                     }
                 }
             }
-
         }
     }
     pub fn search(&self, term: &str) -> Vec<TrieSearchResult> {
         let mut res = Vec::new();
         let mut curr_row = 0;
+        // find if the whole
         for c in term.chars() {
-            let entry = self.trie_entries[curr_row].find(c);
-            match entry {
-                None => return res,
-                Some(ni) => {
-                    curr_row = ni.index as usize;
-                    if ni.terminated {
-                        if let Some(entries) = self.dictionary_map.get(&curr_row) {
-                            res.push(TrieSearchResult {
-                                word: term.to_string(),
-                                entries: entries.clone(),
-                            });
-                        }
-                    }
-
-                }
+            if let Some(ni) = self.trie_entries[curr_row].find(c) {
+                curr_row = ni.index as usize;
             }
             // if any word was found it will be in the return vector, from here return all the children (filtered with terminated)
         }
@@ -418,8 +408,6 @@ impl Trie {
                                 word: w.clone(),
                                 entries: entries.clone(),
                             });
-                        }else{
-                            println!("@@@@@@@@@@@@@@@@@@@no dictionary entry for {}, should panic",w);
                         }
                     }
 

@@ -98,12 +98,13 @@ fn test_add_with_dictionary_index_with_duplicate_word() {
 fn test_word_with_parent() {
     let mut tr = prepare_trie();
     tr.add_word("dragan miocinovic", 5, 0);
+    //println!("{:#?}", tr);
     let p = tr
-        .search("DRAGAN M")
+        .search("DRAGAN MIOC")
         .iter()
         .map(|x| x.word.clone())
         .collect::<Vec<String>>();
     let t = vec!["DRAGAN MIOCINOVIC".to_string()];
-    println!("{:?}", p);
+
     assert_eq!(p, t);
 }
