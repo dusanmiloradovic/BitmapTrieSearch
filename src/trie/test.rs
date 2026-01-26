@@ -63,6 +63,7 @@ fn test_add_with_dictionary_index() {
 fn test_add_with_dictionary_index_with_duplicate_word() {
     let mut tr = prepare_trie();
     tr.add_word("dragan", 5, 0);
+    tr.add_word("dragana", 7, 0);
     let mut p = tr
         .search("DR")
         .iter()
@@ -73,13 +74,13 @@ fn test_add_with_dictionary_index_with_duplicate_word() {
         (
             "DRAGAN".to_string(),
             DictionaryMapEntry {
-                entries: vec![(0, 0), (7, 0)], // not adding to dictionary entry, why??
+                entries: vec![(0, 0), (5, 0)], // not adding to dictionary entry, why??
             },
         ),
         (
             "DRAGANA".to_string(),
             DictionaryMapEntry {
-                entries: vec![(1, 0)],
+                entries: vec![(1, 0), (7, 0)],
             },
         ),
         (
@@ -109,11 +110,13 @@ fn test_word_with_parent() {
     assert_eq!(p, t);
 }
 #[test]
-fn should_be_empty(){
-    let tr=prepare_trie();
-    let p = tr.search("dusana").iter()
+fn should_be_empty() {
+    let tr = prepare_trie();
+    let p = tr
+        .search("dusana")
+        .iter()
         .map(|x| x.word.clone())
         .collect::<Vec<String>>();
-    let t:Vec<String> = vec![];
-    assert_eq!(p,t);
+    let t: Vec<String> = vec![];
+    assert_eq!(p, t);
 }

@@ -319,10 +319,6 @@ impl Trie {
         let mut should_update_dictionary = false;
         for (i, c) in word.chars().enumerate() {
             let terminated = i == word_len - 1;
-
-            if should_update_dictionary {
-                self.update_dictionary_entry(curr_row, dictionary_index, dictionary_attribute);
-            }
             should_update_dictionary = false;
             if should_add {
                 let v = vec![(
@@ -339,9 +335,6 @@ impl Trie {
                 prev_c = c;
                 prev_row = position as usize;
                 curr_row = self.trie_entries.len() - 1;
-                if terminated {
-                    self.update_dictionary_entry(curr_row, dictionary_index, dictionary_attribute);
-                }
                 continue;
             }
             prev_c = c;
@@ -379,6 +372,7 @@ impl Trie {
                 }
             }
         }
+        self.update_dictionary_entry(prev_row, dictionary_index, dictionary_attribute);
     }
     pub fn search(&self, term: &str) -> Vec<TrieSearchResult> {
         let mut res = Vec::new();
