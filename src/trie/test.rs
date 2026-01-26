@@ -12,7 +12,6 @@ fn prepare_trie() -> Trie {
 #[test]
 fn test_add() {
     let t = prepare_trie();
-    print!("trie contents: {:#?}", t);
     let mut p = t
         .search("DR")
         .iter()

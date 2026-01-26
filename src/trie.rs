@@ -350,8 +350,6 @@ impl Trie {
                     entry.update_terminated(c, true);
                    should_update_dictionary = true;
 
-                }else{
-                    entry.update_terminated(c, false);
                 }
                 if node.index != 0 {
                     prev_row = curr_row;
@@ -420,10 +418,11 @@ impl Trie {
                                 word: w.clone(),
                                 entries: entries.clone(),
                             });
+                        }else{
+                            println!("@@@@@@@@@@@@@@@@@@@no dictionary entry for {}, should panic",w);
                         }
-                    }else{
-                        curr_row = ni.index as usize;
                     }
+
                     if ni.index != 0 {
                         let entry = &self.trie_entries[ni.index as usize];
                         let children = entry.get_all();
@@ -431,6 +430,7 @@ impl Trie {
                             bfs_stack.push((w.to_string() + &c.to_string(), ni));
                         }
                     }
+                    curr_row = ni.index as usize;
                 }
             }
         }
