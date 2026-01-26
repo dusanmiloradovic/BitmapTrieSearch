@@ -387,6 +387,8 @@ impl Trie {
         for c in term.chars() {
             if let Some(ni) = self.trie_entries[curr_row].find(c) {
                 curr_row = ni.index as usize;
+            }else{
+                return res;
             }
             // if any word was found it will be in the return vector, from here return all the children (filtered with terminated)
         }

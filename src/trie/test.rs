@@ -108,3 +108,12 @@ fn test_word_with_parent() {
 
     assert_eq!(p, t);
 }
+#[test]
+fn should_be_empty(){
+    let tr=prepare_trie();
+    let p = tr.search("dusana").iter()
+        .map(|x| x.word.clone())
+        .collect::<Vec<String>>();
+    let t:Vec<String> = vec![];
+    assert_eq!(p,t);
+}
