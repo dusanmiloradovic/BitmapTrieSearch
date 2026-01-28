@@ -2,6 +2,8 @@
 // 64 for bitmap maps to u64
 pub const CHARS: &str = " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_";
 
+
+// TODO add the optional CHARS (dictionary), for example only Cyrillic    
 pub fn idx(c:char)->u8{
     let b = c.to_uppercase();
     let k = b.to_string();

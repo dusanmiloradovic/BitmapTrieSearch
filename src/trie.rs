@@ -83,7 +83,15 @@ trait TrieEntryOp {
     fn update_index(&mut self, c: char, index: u32);
     fn update_terminated(&mut self, c: char, terminated: bool);
     fn get_all(&self) -> Vec<(char, NodeIndex)>;
+    fn remove(&mut self, c: char) -> bool; //if true is returned, the trie entry is empty, can be removed (mark row as free)
 }
+
+// TODO trieentry removal from the Trie
+// Since updating the indices after the deletion is costly
+// we will not physically remove the entry from vector
+// instead we will create a list of free row numbers, and push it there
+// when the trie is expanded, first it will check if there are free rows available
+// and then only expand the trie vector
 
 #[derive(Debug)]
 enum TrieEntry {
@@ -125,34 +133,31 @@ impl TrieEntryOp for TrieEntry {
     }
 
     fn update_index(&mut self, c: char, index: u32) {
-        let ix = idx(c);
+        let pos = idx(c);
         match self {
             TrieEntry::TrieEntryV(v) => {
                 for vv in v.0.iter_mut() {
-                    if vv.0 == ix {
+                    if vv.0 == pos {
                         let mut ni = vv.1;
                         ni.index = index;
                         vv.1 = ni;
                     }
                 }
             }
-            TrieEntry::TrieEntryG(g) => {
-                let pos = idx(c);
-                match g.get(pos) {
-                    Some(ni) => {
-                        let mut nim = *ni;
-                        nim.index = index;
-                        g.insert_at(pos, nim);
-                    }
-                    None => {
-                        let ni = NodeIndex {
-                            index,
-                            terminated: false,
-                        };
-                        g.insert_at(pos, ni);
-                    }
+            TrieEntry::TrieEntryG(g) => match g.get(pos) {
+                Some(ni) => {
+                    let mut nim = *ni;
+                    nim.index = index;
+                    g.insert_at(pos, nim);
                 }
-            }
+                None => {
+                    let ni = NodeIndex {
+                        index,
+                        terminated: false,
+                    };
+                    g.insert_at(pos, ni);
+                }
+            },
         }
     }
 
@@ -201,6 +206,19 @@ impl TrieEntryOp for TrieEntry {
         }
         ret
     }
+
+    fn remove(&mut self, c: char) -> bool {
+        let pos = idx(c);
+        match self {
+            TrieEntry::TrieEntryV(v) => {
+                v.0.retain(|x| x.0 != pos);
+                v.0.len() == 0
+            }
+            TrieEntry::TrieEntryG(g) => {
+                g.remove_at(pos)
+            }
+        }
+    }
 }
 
 impl TrieEntryG {
@@ -217,6 +235,13 @@ impl TrieEntryG {
             // Bit was already set: update existing entry
             self.positions[array_idx] = node;
         }
+    }
+
+    pub fn remove_at(&mut self, bit_pos: u8) -> bool {
+        let mut mask = u64::MAX;
+        mask &= !(1u64 << bit_pos);
+        self.bitmap &= mask;
+        self.bitmap == 0
     }
 
     pub fn get(&self, bit_pos: u8) -> Option<&NodeIndex> {
@@ -261,6 +286,7 @@ and then traverse up to the top to remove the node from trie
 pub struct Trie {
     trie_entries: Vec<TrieEntry>,
     dictionary_map: HashMap<usize, DictionaryMapEntry>, //One NodeIndex to many DictionaryEntries (+ attribute)
+    free_list: Vec<usize>
 }
 
 // dictionary will keep the map of attributes, the
@@ -270,6 +296,7 @@ impl Trie {
         let mut t = Trie {
             trie_entries: Vec::new(),
             dictionary_map: HashMap::new(),
+            free_list: Vec::new()
         };
         let v = vec![(
             0,
@@ -306,6 +333,31 @@ impl Trie {
                 };
                 self.dictionary_map.insert(curr_row, e);
             }
+        }
+    }
+
+    fn remove_dictionary_entry(
+        &mut self,
+        curr_row: usize,
+        dictionary_index: u32,
+        dictionary_attribute: u8,
+    ) -> bool {
+        if let Some(e) = self.dictionary_map.get_mut(&curr_row) {
+            let v = &mut e.entries;
+            for (i, vv) in v.iter().enumerate() {
+                if vv.0 == dictionary_index && vv.1 == dictionary_attribute {
+                    v.remove(i);
+                    break;
+                }
+            }
+            if v.len() == 0 {
+                self.dictionary_map.remove(&curr_row);
+                true // if the dictionary map is empty, we can remove the trie entry(no trie leaf points to it)
+            } else {
+                false
+            }
+        } else {
+            false
         }
     }
 
@@ -381,7 +433,7 @@ impl Trie {
         for c in term.chars() {
             if let Some(ni) = self.trie_entries[curr_row].find(c) {
                 curr_row = ni.index as usize;
-            }else{
+            } else {
                 return res;
             }
             // if any word was found it will be in the return vector, from here return all the children (filtered with terminated)
@@ -419,5 +471,40 @@ impl Trie {
             }
         }
         res
+    }
+
+    pub fn delete_word(&mut self, word: &str, dictionary_index: u32, dictionary_attribute: u8) {
+        let mut curr_row = 0;
+        let mut prev_row = 0;
+        let mut trail: Vec<(usize, char)> = Vec::new();
+        for c in word.chars() {
+            prev_row = curr_row;
+            if let Some(ni) = self.trie_entries[curr_row].find(c) {
+                curr_row = ni.index as usize;
+                let t = ni;
+                trail.push((curr_row, c));
+            } else {
+                return;
+            }
+        }
+        let removed =
+            self.remove_dictionary_entry(prev_row, dictionary_index, dictionary_attribute);
+        if removed {
+            let (row, c) = trail.pop().unwrap();
+            self.trie_entries[row].update_terminated(c, false);
+            let ni = self.trie_entries[row].find(c).unwrap();
+            if ni.index == 0 {
+                // no descedants left, we can remove this character from trie entry
+                let all_removed = self.trie_entries[row].remove(c);
+                // TODO if all removed, put this row number into free list
+                if all_removed {
+                    self.free_list.push(row);
+                }
+            }
+            // TODO analyze what happens with the parent TrieEntry,
+            // we may need to update the node index
+            // the question is shall it be done only if everything was removed
+            // For now I think yes, since we can have mutliple words with the same prefix still going
+        }
     }
 }
