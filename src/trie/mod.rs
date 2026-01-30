@@ -6,8 +6,8 @@ pub use self::entry::{
     MAX_DIRECT_ENTRIES, NodeIndex, TrieEntry, TrieEntryG, TrieEntryOp, TrieEntryV,
 };
 use crate::encoding::idx;
+use serde::__private228::ser::constrain;
 use std::collections::HashMap;
-
 /*
 This is the Trie implementation for contextual search.
 The primary use case is autocomplete search in context.
@@ -149,8 +149,7 @@ impl Trie {
                     },
                 )];
                 let tt = TrieEntryV(v);
-                self.trie_entries.push(TrieEntry::TrieEntryV(tt));
-                let position = self.trie_entries.len() as u32 - 1;
+                let position = self.addTrieEntry(tt);
                 self.trie_entries[prev_row].update_index(prev_c, position);
                 prev_c = c;
                 prev_row = position as usize;
@@ -190,6 +189,19 @@ impl Trie {
         }
         self.update_dictionary_entry(prev_row, dictionary_index, dictionary_attribute);
     }
+
+    fn addTrieEntry(&mut self, tt: TrieEntryV) -> u32 {
+        if self.free_list.len() > 0 {
+            let position = self.free_list.pop().unwrap();
+            self.trie_entries[position as usize] = TrieEntry::TrieEntryV(tt);
+            let position = position as u32;
+            return position;
+        }
+        self.trie_entries.push(TrieEntry::TrieEntryV(tt));
+        let position = self.trie_entries.len() as u32 - 1;
+        position
+    }
+
     pub fn search(&self, term: &str) -> Vec<TrieSearchResult> {
         let mut res = Vec::new();
         let mut curr_row = 0;
@@ -269,34 +281,25 @@ impl Trie {
         let removed =
             self.remove_dictionary_entry(prev_row, dictionary_index, dictionary_attribute);
         if removed {
-            let mut row_removed = true; //looping condition
-            let mut cnt = 0;
-            while row_removed && trail.len() > 0 {
-                let (row, c, terminated) = trail.pop().unwrap();
-                if cnt == 0 {
+            for j in (0..trail.len()).rev() {
+                let (row, c, terminated) = trail[j];
+                if j == trail.len() - 1 {
                     self.trie_entries[row].update_terminated(c, false);
-                    self.free_list.push(row);
                 } else if terminated {
                     break;
                 }
-
                 let ni = self.trie_entries[row].find(c).unwrap();
-                if cnt != 0 {
-                    self.trie_entries[row].update_index(c, 0);
+                if ni.index != 0 {
+                    break;
                 }
-                if ni.index == 0 || cnt != 0 {
-                    // no descedants left, we can remove this character from trie entry
-                    let all_removed = self.trie_entries[row].remove(c);
-                    // TODO if all removed, put this row number into free list
-                    if all_removed {
-                        self.free_list.push(row);
-                    } else {
-                        row_removed = false;
-                    }
-                } else {
-                    row_removed = false;
+                let all_removed = self.trie_entries[row].remove(c);
+                if all_removed {
+                    self.free_list.push(row);
                 }
-                cnt += 1;
+                if j > 0 {
+                    let (row2, c2, _) = trail[j - 1];
+                    self.trie_entries[row2].update_index(c2, 0);
+                }
             }
         }
     }

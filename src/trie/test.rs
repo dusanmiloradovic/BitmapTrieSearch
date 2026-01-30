@@ -162,9 +162,7 @@ fn should_be_empty() {
 #[test]
 fn basic_deletion() {
     let mut trie = prepare_trie();
-    println!("{:#?}\n", trie);
     trie.delete_word("dragana", 1, 0);
-    println!("{:#?}\n", trie);
     let p = trie
         .search("DRAGAN")
         .iter()
@@ -178,7 +176,6 @@ fn basic_deletion() {
 fn delete_word_with_children() {
     let mut trie = prepare_trie();
     trie.delete_word("dragan", 0, 0);
-    print!("{:#?}\n", trie);
     let p = trie
         .search("DRAGAN")
         .iter()
@@ -186,4 +183,39 @@ fn delete_word_with_children() {
         .collect::<Vec<String>>();
     let t = vec!["DRAGANA".to_string()];
     assert_eq!(p, t);
+}
+
+#[test]
+fn reusing_trie_entry_slots(){
+    let mut t = Trie::new();
+    t.add_word("petar",0,0);
+    t.add_word("sestar",1,0);
+    t.add_word("prevar",2,0);
+    t.add_word("godar",3,0);
+    t.add_word("mitar",4,0);
+    let len1 = t.trie_entries.len();
+    t.delete_word("sestar",1,0);
+    println!("{:#?}\n",t);
+    assert_eq!(t.free_list.len(),5);//first letter will not be reused, it will be in first trie entry
+    t.add_word("julian",5,0);
+    let len2 = t.trie_entries.len();
+    assert_eq!(len1,len2);
+
+    let p = t
+        .search("JULIAN")
+        .iter()
+        .map(|x| x.word.clone())
+        .collect::<Vec<String>>();
+    let tt = vec!["JULIAN".to_string()];
+    assert_eq!(p, tt);
+   // assert_eq!(t.free_list.len(),0);
+    t.add_word("mondays",6,0);
+    //t.add_word("monday",6,0);
+    // will it owerwrite previous word?
+    let pp = t
+        .search("JULIAN")
+        .iter()
+        .map(|x| x.word.clone())
+        .collect::<Vec<String>>();
+    assert_eq!(pp, tt);
 }
