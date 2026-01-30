@@ -27,6 +27,31 @@ fn test_add() {
 }
 
 #[test]
+fn test_search_exact() {
+    let t = prepare_trie();
+    let p = t
+        .search("DRAGAN")
+        .iter()
+        .map(|x| x.word.clone())
+        .collect::<Vec<String>>();
+    let t = vec!["DRAGAN".to_string()];
+    assert_eq!(p, t);
+}
+
+#[test]
+fn test_search_exact_basic() {
+    let mut t = Trie::new();
+    t.add_word("dragan", 0, 0);
+    let p = t
+        .search("DRAGAN")
+        .iter()
+        .map(|x| x.word.clone())
+        .collect::<Vec<String>>();
+    let t = vec!["DRAGAN".to_string()];
+    assert_eq!(p, t);
+}
+
+#[test]
 fn test_add_with_dictionary_index() {
     let t = prepare_trie();
     let mut p = t
@@ -118,5 +143,33 @@ fn should_be_empty() {
         .map(|x| x.word.clone())
         .collect::<Vec<String>>();
     let t: Vec<String> = vec![];
+    assert_eq!(p, t);
+}
+
+#[test]
+fn basic_deletion() {
+    let mut trie = prepare_trie();
+    println!("{:#?}\n", trie);
+    trie.delete_word("dragana", 1, 0);
+    println!("{:#?}\n", trie);
+    let p = trie
+        .search("DRAGAN")
+        .iter()
+        .map(|x| x.word.clone())
+        .collect::<Vec<String>>();
+    let t = vec!["DRAGAN".to_string()];
+    assert_eq!(p, t);
+}
+
+#[test]
+fn delete_word_with_children() {
+    let mut trie = prepare_trie();
+    trie.delete_word("dragana", 1, 0);
+    let p = trie
+        .search("DRAGA")
+        .iter()
+        .map(|x| x.word.clone())
+        .collect::<Vec<String>>();
+    let t = vec!["DRAGANA".to_string()];
     assert_eq!(p, t);
 }

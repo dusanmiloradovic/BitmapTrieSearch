@@ -2,9 +2,11 @@ pub mod entry;
 #[cfg(test)]
 mod test;
 
-use crate::encoding::{idx};
+pub use self::entry::{
+    MAX_DIRECT_ENTRIES, NodeIndex, TrieEntry, TrieEntryG, TrieEntryOp, TrieEntryV,
+};
+use crate::encoding::idx;
 use std::collections::HashMap;
-pub use self::entry::{NodeIndex, TrieEntry, TrieEntryG, TrieEntryV, TrieEntryOp, MAX_DIRECT_ENTRIES};
 
 /*
 This is the Trie implementation for contextual search.
@@ -238,12 +240,12 @@ impl Trie {
     pub fn delete_word(&mut self, word: &str, dictionary_index: u32, dictionary_attribute: u8) {
         let mut curr_row = 0;
         let mut prev_row = 0;
-        let mut trail: Vec<(usize, char)> = Vec::new();
+        let mut trail: Vec<(usize, char, bool)> = Vec::new();
         for c in word.chars() {
             prev_row = curr_row;
             if let Some(ni) = self.trie_entries[curr_row].find(c) {
                 curr_row = ni.index as usize;
-                trail.push((curr_row, c));
+                trail.push((prev_row, c, ni.terminated));
             } else {
                 return;
             }
@@ -255,10 +257,14 @@ impl Trie {
             let mut row_removed = true; //looping condition
             let mut cnt = 0;
             while row_removed && trail.len() > 0 {
-                let (row, c) = trail.pop().unwrap();
+                let (row, c, terminated) = trail.pop().unwrap();
                 if cnt == 0 {
                     self.trie_entries[row].update_terminated(c, false);
+                    self.free_list.push(row);
+                } else if terminated {
+                    break;
                 }
+
                 let ni = self.trie_entries[row].find(c).unwrap();
                 if cnt != 0 {
                     self.trie_entries[row].update_index(c, 0);
