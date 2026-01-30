@@ -177,9 +177,10 @@ fn basic_deletion() {
 #[test]
 fn delete_word_with_children() {
     let mut trie = prepare_trie();
-    trie.delete_word("dragana", 1, 0);
+    trie.delete_word("dragan", 0, 0);
+    print!("{:#?}\n", trie);
     let p = trie
-        .search("DRAGA")
+        .search("DRAGAN")
         .iter()
         .map(|x| x.word.clone())
         .collect::<Vec<String>>();
