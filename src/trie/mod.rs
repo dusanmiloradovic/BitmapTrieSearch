@@ -193,14 +193,29 @@ impl Trie {
     pub fn search(&self, term: &str) -> Vec<TrieSearchResult> {
         let mut res = Vec::new();
         let mut curr_row = 0;
+        let mut last_terminated = false;
+        let mut prev_row = 0;
         // find if the whole
         for c in term.chars() {
+            prev_row = curr_row;
             if let Some(ni) = self.trie_entries[curr_row].find(c) {
                 curr_row = ni.index as usize;
+                last_terminated = ni.terminated;
             } else {
                 return res;
             }
             // if any word was found it will be in the return vector, from here return all the children (filtered with terminated)
+        }
+        if last_terminated {
+            if let Some(entries) = self.dictionary_map.get(&prev_row) {
+                res.push(TrieSearchResult {
+                    word: term.to_string(),
+                    entries: entries.clone(),
+                });
+            }
+            if curr_row == 0 {
+                return res; //last entry
+            }
         }
         let entry = &self.trie_entries[curr_row];
         let children = entry.get_all();

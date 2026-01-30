@@ -50,6 +50,19 @@ fn test_search_exact_basic() {
     let t = vec!["DRAGAN".to_string()];
     assert_eq!(p, t);
 }
+#[test]
+fn test_search_exact_basic_two() {
+    let mut t = Trie::new();
+    t.add_word("dragan", 0, 0);
+    t.add_word("dragana", 1, 0);
+    let p = t
+        .search("DRAGAN")
+        .iter()
+        .map(|x| x.word.clone())
+        .collect::<Vec<String>>();
+    let t = vec!["DRAGAN".to_string(),"DRAGANA".to_string()];
+    assert_eq!(p, t);
+}
 
 #[test]
 fn test_add_with_dictionary_index() {
