@@ -1,4 +1,4 @@
-use crate::encoding::{CHARS, idx};
+use crate::encoding::{decode, idx};
 use std::fmt;
 
 #[derive(Clone, Debug, Copy)]
@@ -25,7 +25,7 @@ impl fmt::Debug for TrieEntryV {
         let r = &self.0;
         write!(f, "TrieEntryV: [")?;
         for (_, z) in r.iter().enumerate() {
-            let c = CHARS.chars().nth(z.0 as usize).unwrap();
+            let c = decode(z.0);
             write!(f, "({},{:?})", c, z.1)?;
         }
         write!(f, "]")
@@ -38,7 +38,7 @@ impl fmt::Debug for TrieEntryG {
         for i in 0..64 {
             let bit = self.bitmap & (1 << i);
             if bit != 0 {
-                let c = CHARS.chars().nth(i as usize).unwrap();
+                let c = decode(i as u8);
                 let z = self.get(i as u8).unwrap();
                 write!(f, "({},{:?}),", c, z)?;
             }
@@ -152,7 +152,7 @@ impl TrieEntryOp for TrieEntry {
         match self {
             TrieEntry::TrieEntryV(v) => {
                 for x in v.0.iter() {
-                    let c = CHARS.chars().nth(x.0 as usize).unwrap();
+                    let c = decode(x.0);
                     ret.push((c, x.1));
                 }
             }
@@ -160,7 +160,7 @@ impl TrieEntryOp for TrieEntry {
                 for i in 0..64 {
                     let bit = g.bitmap & (1 << i);
                     if bit != 0 {
-                        let c = CHARS.chars().nth(i as usize).unwrap();
+                        let c = decode(i as u8);
                         let z = g.get(i as u8).unwrap();
                         ret.push((c, *z));
                     }

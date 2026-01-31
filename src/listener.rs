@@ -1,6 +1,6 @@
 use crate::access::TrieMap;
-use crate::command::{AddWordResponse, Command, Response, SearchResponse};
 use crate::command::Command::{AddWord, Search};
+use crate::command::{AddWordResponse, Command, Response, SearchResponse};
 use serde::{Deserialize, Serialize};
 use std::io::{BufReader, Read, Write};
 use std::net::{TcpListener, TcpStream};

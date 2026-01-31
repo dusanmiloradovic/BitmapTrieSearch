@@ -6,7 +6,6 @@ pub use self::entry::{
     MAX_DIRECT_ENTRIES, NodeIndex, TrieEntry, TrieEntryG, TrieEntryOp, TrieEntryV,
 };
 use crate::encoding::idx;
-use serde::__private228::ser::constrain;
 use std::collections::HashMap;
 /*
 This is the Trie implementation for contextual search.

@@ -1,5 +1,4 @@
 use serde::{Serialize, Deserialize};
-use crate::access::TrieMap;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AddWordCommand {
