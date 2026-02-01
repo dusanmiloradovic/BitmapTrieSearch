@@ -12,6 +12,9 @@ pub trait Encoding: Debug {
     fn translate_encode(&self, str: &str) -> String;
     //we can't always just use encode, because se might want to transliterate one char to multiple trie chars (for example Š to SH)
     fn translate_decode<'a>(&self, original_str: &'a str, ind: usize, str: &str) -> &'a str;
+    fn get_separator(&self) -> char {
+        ' '
+    }
 }
 
 #[derive(Debug)]
