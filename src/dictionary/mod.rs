@@ -1,10 +1,10 @@
+use crate::trie::Trie;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
-use crate::trie::Trie;
 
 const DEFAULT_MULTIPLE_SEARCH_LENGTH: usize = 3;
 
-struct DictionaryEntry(Vec<String>);
+struct DictionaryEntry(HashMap<usize, String>);
 // each attribute of a dictionaryentry is one string in a vector, the order is defined in the dictionary
 // attribute is mapped to a usize, that is a position in the vector
 
@@ -37,7 +37,7 @@ fn split_word(word: &str) -> Vec<(String, usize)> {
         } else {
             ret.push((z[j..].join(" "), position));
         }
-        
+
         // Move position past the current word
         position += z[j].len();
     }
@@ -56,6 +56,32 @@ impl Dictionary {
             trie: Arc::new(RwLock::new(Trie::new())),
         }
     }
+    pub fn add_dictionary_entry(&mut self, data: HashMap<String, String>) {
+        let mut m: HashMap<usize, String> = HashMap::new();
+        data.keys().for_each(|k| {
+            if let Some((u, attr_s)) = self.attribute_map.get(k) {
+                m.insert(*u, data[k].clone());
+                match attr_s {
+                    AttributeSearch::None => (),
+                    AttributeSearch::Exact => {
+                        let mut l = self.trie.write().unwrap();
+                        l.add_word(&data[k], m.len() as u32 + 1, *u as u8, 0);
+                    }
+                    AttributeSearch::Multiple => {
+                        let v = split_word(&data[k]);
+                        for (s, pos) in v {
+                            let mut l = self.trie.write().unwrap();
+                            l.add_word(&s, m.len() as u32 + 1, *u as u8, pos as u16);
+                        }
+                    }
+                }
+            }
+        });
+        if m.len() == 0 {
+            return;
+        }
+        self.entries.push(DictionaryEntry(m));
+    }
 }
 
 #[cfg(test)]
@@ -66,7 +92,19 @@ mod test {
     fn test_split_word() {
         let w = "ab bc cd ef gh kl";
         let g = split_word(w);
-        let expected: Vec<(&str, usize)> = vec![("ab bc cd", 0), ("bc cd ef", 3), ("cd ef gh", 6), ("ef gh kl", 9), ("gh kl", 12),("kl",15)];
-        assert_eq!(g.iter().map(|(s, pos)| (s.as_str(), *pos)).collect::<Vec<_>>(), expected);
+        let expected: Vec<(&str, usize)> = vec![
+            ("ab bc cd", 0),
+            ("bc cd ef", 3),
+            ("cd ef gh", 6),
+            ("ef gh kl", 9),
+            ("gh kl", 12),
+            ("kl", 15),
+        ];
+        assert_eq!(
+            g.iter()
+                .map(|(s, pos)| (s.as_str(), *pos))
+                .collect::<Vec<_>>(),
+            expected
+        );
     }
 }
