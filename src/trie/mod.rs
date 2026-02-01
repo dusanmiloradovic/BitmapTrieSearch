@@ -25,9 +25,10 @@ const MAX_SEARCH_RESULTS: usize = 10;
 
 #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub struct DictionaryMapEntry {
-    pub entries: Vec<(u32, u8)>,
+    pub entries: Vec<(u32, u8, u16)>,
     // each terminated word in trie maps to one dictionary entry and one attribute (if no attribute, use default attribute 0)
     // attribute is expected as u8, the dictionary itself should keep the mapping of attributes(if there is one)
+    // the last entry is the word position in the original entry
 }
 
 #[derive(Debug)]
@@ -84,6 +85,7 @@ impl Trie {
         curr_row: usize,
         dictionary_index: u32,
         dictionary_attribute: u8,
+        entry_pos: u16,
     ) {
         let v = self.dictionary_map.get_mut(&curr_row);
         match v {
@@ -94,11 +96,11 @@ impl Trie {
                         return;
                     }
                 }
-                v.push((dictionary_index, dictionary_attribute));
+                v.push((dictionary_index, dictionary_attribute, entry_pos));
             }
             None => {
                 let e = DictionaryMapEntry {
-                    entries: vec![(dictionary_index, dictionary_attribute)],
+                    entries: vec![(dictionary_index, dictionary_attribute,entry_pos)],
                 };
                 self.dictionary_map.insert(curr_row, e);
             }
@@ -130,7 +132,13 @@ impl Trie {
         }
     }
 
-    pub fn add_word(&mut self, word: &str, dictionary_index: u32, dictionary_attribute: u8) {
+    pub fn add_word(
+        &mut self,
+        word: &str,
+        dictionary_index: u32,
+        dictionary_attribute: u8,
+        entry_pos: u16,
+    ) {
         let mut curr_row = 0;
         let mut prev_row = 0;
         let mut should_add = false;
@@ -148,7 +156,7 @@ impl Trie {
                     },
                 )];
                 let tt = TrieEntryV(v);
-                let position = self.addTrieEntry(tt);
+                let position = self.add_trie_entry(tt);
                 self.trie_entries[prev_row].update_index(prev_c, position);
                 prev_c = c;
                 prev_row = position as usize;
@@ -186,13 +194,13 @@ impl Trie {
                 }
             }
         }
-        self.update_dictionary_entry(prev_row, dictionary_index, dictionary_attribute);
+        self.update_dictionary_entry(prev_row, dictionary_index, dictionary_attribute, entry_pos);
     }
 
-    fn addTrieEntry(&mut self, tt: TrieEntryV) -> u32 {
+    fn add_trie_entry(&mut self, tt: TrieEntryV) -> u32 {
         if self.free_list.len() > 0 {
             let position = self.free_list.pop().unwrap();
-            self.trie_entries[position as usize] = TrieEntry::TrieEntryV(tt);
+            self.trie_entries[position] = TrieEntry::TrieEntryV(tt);
             let position = position as u32;
             return position;
         }

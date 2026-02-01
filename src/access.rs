@@ -11,13 +11,13 @@ impl TrieMap {
         Self { map: HashMap::new() }
     }
 
-    pub fn add_word(&mut self, trie_id: &str, word: &str, dictionary_index: u32, dictionary_attribute: u8) {
+    pub fn add_word(&mut self, trie_id: &str, word: &str, dictionary_index: u32, dictionary_attribute: u8, position: u16) {
         let trie = self.map
             .entry(trie_id.to_string())
             .or_insert_with(|| Arc::new(RwLock::new(Trie::new())));
         
         let mut trie_lock = trie.write().unwrap();
-        trie_lock.add_word(word, dictionary_index, dictionary_attribute);
+        trie_lock.add_word(word, dictionary_index, dictionary_attribute,position);
     }
 
     pub fn search(&self, trie_id: &str, word: &str) -> Option<Vec<TrieSearchResult>> {
