@@ -32,7 +32,7 @@ fn split_word(word: &str) -> Vec<(String, usize)> {
         if let Some(pos) = word[position..].find(z[j]) {
             position += pos;
         }
-        if j < z.len() - DEFAULT_MULTIPLE_SEARCH_LENGTH {
+        if j + DEFAULT_MULTIPLE_SEARCH_LENGTH < z.len() {
             ret.push((z[j..j + DEFAULT_MULTIPLE_SEARCH_LENGTH].join(" "), position));
         } else {
             ret.push((z[j..].join(" "), position));
@@ -86,8 +86,33 @@ impl Dictionary {
 
 #[cfg(test)]
 mod test {
-    use crate::dictionary::split_word;
+    use crate::dictionary::{AttributeSearch, Dictionary, split_word};
+    use std::collections::HashMap;
 
+    fn prepare_dictionary() -> Dictionary {
+        let m = vec![
+            ("car".to_string(), AttributeSearch::Multiple),
+            ("manufacturer".to_string(), AttributeSearch::Exact),
+            ("serial_number".to_string(), AttributeSearch::None),
+        ];
+        let mut d = Dictionary::new(m);
+        d.add_dictionary_entry(HashMap::from([
+            ("manufacturer".to_string(), "Toyota".to_string()),
+            ("car".to_string(), "Corolla".to_string()),
+            ("serial_number".to_string(), "123456".to_string()),
+        ]));
+        d.add_dictionary_entry(HashMap::from([
+            ("manufacturer".to_string(), "Subaru".to_string()),
+            ("car".to_string(), "Outback".to_string()),
+            ("serial_number".to_string(), "1234567".to_string()),
+        ]));
+        d.add_dictionary_entry(HashMap::from([
+            ("manufacturer".to_string(), "Honda".to_string()),
+            ("car".to_string(), "Accord".to_string()),
+            ("serial_number".to_string(), "123458".to_string()),
+        ]));
+        d
+    }
     #[test]
     fn test_split_word() {
         let w = "ab bc cd ef gh kl";
@@ -106,5 +131,23 @@ mod test {
                 .collect::<Vec<_>>(),
             expected
         );
+    }
+
+    #[test]
+    fn test_dictionary_addition() {
+        let d = prepare_dictionary();
+        let lock = d.trie.read().unwrap();
+        let rez = lock
+            .search("CO")
+            .iter()
+            .map(|x| x.word.clone())
+            .collect::<Vec<String>>();
+        assert_eq!(rez, vec!["COROLLA".to_string()]);
+        let rez2 = lock
+            .search("123")
+            .iter()
+            .map(|x| x.word.clone())
+            .collect::<Vec<String>>();
+        assert_eq!(rez2.len(), 0);
     }
 }
