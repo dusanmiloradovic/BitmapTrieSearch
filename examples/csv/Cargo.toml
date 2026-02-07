@@ -1,0 +1,9 @@
+[package]
+name = "csvexample"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+bitmap_trie = { path = "../../" }
+csv = "1.3.0"
+serde = { version = "1.0.228", features = ["derive"] }
