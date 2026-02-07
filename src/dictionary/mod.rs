@@ -1,10 +1,11 @@
-use crate::trie::Trie;
+use crate::encoding::translate_decode;
+use crate::trie::{Trie, TrieSearchResult};
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
 const DEFAULT_MULTIPLE_SEARCH_LENGTH: usize = 3;
 
-struct DictionaryEntry(HashMap<usize, String>);
+pub struct DictionaryEntry(HashMap<usize, String>);
 // each attribute of a dictionaryentry is one string in a vector, the order is defined in the dictionary
 // attribute is mapped to a usize, that is a position in the vector
 
@@ -20,7 +21,17 @@ pub enum AttributeSearch {
 pub struct Dictionary {
     entries: Vec<DictionaryEntry>,
     attribute_map: HashMap<String, (usize, AttributeSearch)>,
+    reverse_attribute_map: HashMap<u8, String>,
     trie: Arc<RwLock<Trie>>,
+}
+
+pub struct SearchResult<'a> {
+    pub term: &'a str,
+    pub attribute: &'a str,
+    pub original_entry: &'a str,
+    pub attribute_index: usize,
+    pub position: usize,
+    pub dictionary_entry: &'a DictionaryEntry,
 }
 
 fn split_word(word: &str) -> Vec<(String, usize)> {
@@ -47,12 +58,16 @@ fn split_word(word: &str) -> Vec<(String, usize)> {
 impl Dictionary {
     pub fn new(attrs: Vec<(String, AttributeSearch)>) -> Dictionary {
         let mut attribute_map = HashMap::new();
+        let mut reverse_attribute_map: HashMap<u8, String> = HashMap::new();
         for (attr, search) in attrs {
-            attribute_map.insert(attr, (attribute_map.len(), search));
+            let ind = attribute_map.len();
+            attribute_map.insert(attr.clone(), (ind, search));
+            reverse_attribute_map.insert(attribute_map.len() as u8, attr);
         }
         Dictionary {
             entries: Vec::new(),
             attribute_map,
+            reverse_attribute_map,
             trie: Arc::new(RwLock::new(Trie::new())),
         }
     }
@@ -65,13 +80,13 @@ impl Dictionary {
                     AttributeSearch::None => (),
                     AttributeSearch::Exact => {
                         let mut l = self.trie.write().unwrap();
-                        l.add_word(&data[k], m.len() as u32 + 1, *u as u8, 0);
+                        l.add_word(&data[k], self.entries.len() as u32, *u as u8, 0);
                     }
                     AttributeSearch::Multiple => {
                         let v = split_word(&data[k]);
                         for (s, pos) in v {
                             let mut l = self.trie.write().unwrap();
-                            l.add_word(&s, m.len() as u32 + 1, *u as u8, pos as u16);
+                            l.add_word(&s, self.entries.len() as u32, *u as u8, pos as u16);
                         }
                     }
                 }
@@ -81,6 +96,35 @@ impl Dictionary {
             return;
         }
         self.entries.push(DictionaryEntry(m));
+    }
+    pub fn search<'a>(&'a self, word: &str) -> Vec<SearchResult<'a>> {
+        let trie = self.trie.read().unwrap();
+        let uw = word.to_uppercase();
+        let search_res = trie.search(&uw);
+        let mut ret: Vec<SearchResult<'a>> = Vec::new();
+        for TrieSearchResult { word, entries } in search_res {
+            for (dict_index, attribute, pos) in entries.entries {
+                if let Some(entry) = self.entries.get(dict_index as usize) {
+                    let attr = match self.reverse_attribute_map.get(&attribute) {
+                        Some(attr) => attr.as_str(),
+                        None => "", //default attribute
+                    };
+                    if let Some(original_entry) = entry.0.get(&(attribute as usize)) {
+                        let w = translate_decode(original_entry, pos as usize, &word);
+                        let sr = SearchResult {
+                            term: w,
+                            attribute: attr,
+                            original_entry,
+                            attribute_index: attribute as usize,
+                            position: pos as usize,
+                            dictionary_entry: entry,
+                        };
+                        ret.push(sr);
+                    }
+                }
+            }
+        }
+        ret
     }
 }
 
@@ -110,6 +154,11 @@ mod test {
             ("manufacturer".to_string(), "Honda".to_string()),
             ("car".to_string(), "Accord".to_string()),
             ("serial_number".to_string(), "123458".to_string()),
+        ]));
+        d.add_dictionary_entry(HashMap::from([
+            ("manufacturer".to_string(), "Toyota".to_string()),
+            ("car".to_string(), "Camry".to_string()),
+            ("serial_number".to_string(), "223456".to_string()),
         ]));
         d
     }
@@ -149,5 +198,27 @@ mod test {
             .map(|x| x.word.clone())
             .collect::<Vec<String>>();
         assert_eq!(rez2.len(), 0);
+    }
+
+    #[test]
+    fn test_search(){
+        let d = prepare_dictionary();
+        let z=d.search("CO");
+        assert_eq!(z.len(), 1);
+        assert_eq!(z[0].term,"Corolla");
+    }
+
+    #[test]
+    fn test_multiple_entries(){
+        let d=prepare_dictionary();
+        let z=d.search("TO");
+        assert_eq!(z.len(), 2);
+    }
+
+    #[test]
+    fn test_case_sensitivity(){
+        let d = prepare_dictionary();
+        let z=d.search("to");
+        assert_eq!(z.len(), 2);
     }
 }
