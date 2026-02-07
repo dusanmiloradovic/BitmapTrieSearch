@@ -130,7 +130,7 @@ impl Dictionary {
 
 #[cfg(test)]
 mod test {
-    use crate::dictionary::{AttributeSearch, Dictionary, split_word};
+    use crate::dictionary::{split_word, AttributeSearch, Dictionary};
     use std::collections::HashMap;
 
     fn prepare_dictionary() -> Dictionary {
@@ -201,24 +201,24 @@ mod test {
     }
 
     #[test]
-    fn test_search(){
+    fn test_search() {
         let d = prepare_dictionary();
-        let z=d.search("CO");
+        let z = d.search("CO");
         assert_eq!(z.len(), 1);
-        assert_eq!(z[0].term,"Corolla");
+        assert_eq!(z[0].term, "Corolla");
     }
 
     #[test]
-    fn test_multiple_entries(){
-        let d=prepare_dictionary();
-        let z=d.search("TO");
+    fn test_multiple_entries() {
+        let d = prepare_dictionary();
+        let z = d.search("TO");
         assert_eq!(z.len(), 2);
     }
 
     #[test]
-    fn test_case_sensitivity(){
+    fn test_case_sensitivity() {
         let d = prepare_dictionary();
-        let z=d.search("to");
+        let z = d.search("to");
         assert_eq!(z.len(), 2);
     }
 }

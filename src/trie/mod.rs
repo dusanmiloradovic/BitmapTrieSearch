@@ -3,7 +3,7 @@ pub mod entry;
 mod test;
 
 pub use self::entry::{
-    MAX_DIRECT_ENTRIES, NodeIndex, TrieEntry, TrieEntryG, TrieEntryOp, TrieEntryV,
+    NodeIndex, TrieEntry, TrieEntryG, TrieEntryOp, TrieEntryV, MAX_DIRECT_ENTRIES,
 };
 use crate::encoding::idx;
 use std::collections::HashMap;
@@ -100,7 +100,7 @@ impl Trie {
             }
             None => {
                 let e = DictionaryMapEntry {
-                    entries: vec![(dictionary_index, dictionary_attribute,entry_pos)],
+                    entries: vec![(dictionary_index, dictionary_attribute, entry_pos)],
                 };
                 self.dictionary_map.insert(curr_row, e);
             }

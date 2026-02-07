@@ -5,8 +5,8 @@ use std::fmt;
 pub struct NodeIndex {
     pub index: u32, //0 - leaf node
     pub terminated: bool, // it can be terminated for one word, and still continue in the trie
-                // TODO no point keeping both terminated and trie_map_index, since every terminated will point to
-                // dictionary map
+                    // TODO no point keeping both terminated and trie_map_index, since every terminated will point to
+                    // dictionary map
 }
 
 pub const MAX_DIRECT_ENTRIES: usize = 5;

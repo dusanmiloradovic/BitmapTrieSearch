@@ -60,7 +60,7 @@ fn test_search_exact_basic_two() {
         .iter()
         .map(|x| x.word.clone())
         .collect::<Vec<String>>();
-    let t = vec!["DRAGAN".to_string(),"DRAGANA".to_string()];
+    let t = vec!["DRAGAN".to_string(), "DRAGANA".to_string()];
     assert_eq!(p, t);
 }
 
@@ -77,19 +77,19 @@ fn test_add_with_dictionary_index() {
         (
             "DRAGAN".to_string(),
             DictionaryMapEntry {
-                entries: vec![(0, 0,0)],
+                entries: vec![(0, 0, 0)],
             },
         ),
         (
             "DRAGANA".to_string(),
             DictionaryMapEntry {
-                entries: vec![(1, 0,0)],
+                entries: vec![(1, 0, 0)],
             },
         ),
         (
             "DRNI".to_string(),
             DictionaryMapEntry {
-                entries: vec![(2, 0,0)],
+                entries: vec![(2, 0, 0)],
             },
         ),
     ];
@@ -112,19 +112,19 @@ fn test_add_with_dictionary_index_with_duplicate_word() {
         (
             "DRAGAN".to_string(),
             DictionaryMapEntry {
-                entries: vec![(0, 0,0), (5, 0,0)], // not adding to dictionary entry, why??
+                entries: vec![(0, 0, 0), (5, 0, 0)], // not adding to dictionary entry, why??
             },
         ),
         (
             "DRAGANA".to_string(),
             DictionaryMapEntry {
-                entries: vec![(1, 0,0 ), (7, 0,0)],
+                entries: vec![(1, 0, 0), (7, 0, 0)],
             },
         ),
         (
             "DRNI".to_string(),
             DictionaryMapEntry {
-                entries: vec![(2, 0,0)],
+                entries: vec![(2, 0, 0)],
             },
         ),
     ];
@@ -186,20 +186,20 @@ fn delete_word_with_children() {
 }
 
 #[test]
-fn reusing_trie_entry_slots(){
+fn reusing_trie_entry_slots() {
     let mut t = Trie::new();
-    t.add_word("petar",0,0,0);
-    t.add_word("sestar",1,0,0);
-    t.add_word("prevar",2,0,0);
-    t.add_word("godar",3,0,0);
-    t.add_word("mitar",4,0,0);
+    t.add_word("petar", 0, 0, 0);
+    t.add_word("sestar", 1, 0, 0);
+    t.add_word("prevar", 2, 0, 0);
+    t.add_word("godar", 3, 0, 0);
+    t.add_word("mitar", 4, 0, 0);
     let len1 = t.trie_entries.len();
-    t.delete_word("sestar",1,0);
-    println!("{:#?}\n",t);
-    assert_eq!(t.free_list.len(),5);//first letter will not be reused, it will be in first trie entry
-    t.add_word("julian",5,0,0);
+    t.delete_word("sestar", 1, 0);
+    println!("{:#?}\n", t);
+    assert_eq!(t.free_list.len(), 5); //first letter will not be reused, it will be in first trie entry
+    t.add_word("julian", 5, 0, 0);
     let len2 = t.trie_entries.len();
-    assert_eq!(len1,len2);
+    assert_eq!(len1, len2);
 
     let p = t
         .search("JULIAN")
@@ -208,8 +208,8 @@ fn reusing_trie_entry_slots(){
         .collect::<Vec<String>>();
     let tt = vec!["JULIAN".to_string()];
     assert_eq!(p, tt);
-   // assert_eq!(t.free_list.len(),0);
-    t.add_word("mondays",6,0,0);
+    // assert_eq!(t.free_list.len(),0);
+    t.add_word("mondays", 6, 0, 0);
     //t.add_word("monday",6,0);
     // will it owerwrite previous word?
     let pp = t

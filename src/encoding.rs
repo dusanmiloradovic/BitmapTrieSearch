@@ -84,8 +84,8 @@ pub fn translate_decode<'a>(original_str: &'a str, ind: usize, str: &str) -> &'a
 
 #[cfg(test)]
 mod test {
-    use crate::encoding::ASCII_CHARS;
     use crate::encoding::idx;
+    use crate::encoding::ASCII_CHARS;
 
     #[test]
     fn char_eq() {
