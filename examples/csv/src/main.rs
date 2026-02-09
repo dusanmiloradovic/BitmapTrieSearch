@@ -104,7 +104,7 @@ fn load_data(dict :&mut CsvDictionary) -> Result<(), Box<dyn Error>> {
 
     // Sample CSV data (in a real application, this would come from a file)
 
-    let csv_data = read_from_file("BooksDataSet.csv")?;
+    let csv_data = read_from_file("BooksDataset.csv")?;
 
     // Configure attributes for different types of searching
 
