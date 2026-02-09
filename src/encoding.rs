@@ -41,7 +41,15 @@ impl Encoding for AsciiEncoding {
     fn translate_decode<'a>(&self, original_str: &'a str, ind: usize, str: &str) -> &'a str {
         // no need to compare, relying on the fact that translate_encode was done correctly
         // this is correct only if the encoded string has the same number of chars as the original
-        &original_str[ind..ind + str.len()]
+        if let Some(s) = original_str.get(ind..ind + str.len()) {
+            s
+        } else {
+            print!("translate_decode: index out of bounds: ind={}, str.len={}, original_str.len={}\n", ind, str.len(), original_str.len());
+            print!(
+            "original_str: '{}', str: '{}'\n", original_str,str);
+            print!("**********************************\n");
+            ""
+        }
     }
 }
 

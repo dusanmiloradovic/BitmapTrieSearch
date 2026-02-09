@@ -41,17 +41,21 @@ fn split_word(word: &str) -> Vec<(String, usize)> {
     let mut position = 0;
     for j in 0..z.len() {
         // Find the position of this word part in the original string
-        if let Some(pos) = word[position..].find(z[j]) {
-            position += pos;
+        if let Some(byte_pos) = word[position..].find(z[j]) {
+            // Convert byte position to character position
+            position = word[..position + byte_pos]
+                .chars()
+                .count();
         }
+        
         if j + DEFAULT_MULTIPLE_SEARCH_LENGTH < z.len() {
             ret.push((z[j..j + DEFAULT_MULTIPLE_SEARCH_LENGTH].join(" "), position));
         } else {
             ret.push((z[j..].join(" "), position));
         }
-
-        // Move position past the current word
-        position += z[j].len();
+        
+        // Move position past the current word (in characters, not bytes)
+        position += z[j].chars().count();
     }
     ret
 }
