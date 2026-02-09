@@ -32,6 +32,7 @@ pub struct SearchResult<'a> {
     pub attribute_index: usize,
     pub position: usize,
     pub dictionary_entry: &'a DictionaryEntry,
+    pub dictionary_index: usize, // once the search is done, we can use this to get the dictionary entry
 }
 
 fn split_word(word: &str) -> Vec<(String, usize)> {
@@ -118,6 +119,7 @@ impl Dictionary {
                             attribute_index: attribute as usize,
                             position: pos as usize,
                             dictionary_entry: entry,
+                            dictionary_index: dict_index as usize,
                         };
                         ret.push(sr);
                     }

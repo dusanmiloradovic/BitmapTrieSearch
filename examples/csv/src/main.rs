@@ -23,6 +23,7 @@ struct SearchResultJson<'a> {
     original_entry: &'a str,
     attribute_index: usize,
     position: usize,
+    dictionary_index: usize,
 }
 
 struct AppState {
@@ -56,6 +57,7 @@ async fn srca(data: web::Data<AppState>, query: web::Query<SearchQuery>) -> impl
                 original_entry: r.original_entry,
                 attribute_index: r.attribute_index,
                 position: r.position,
+                dictionary_index: r.dictionary_index,
             })
             .collect(),
     };
