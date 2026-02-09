@@ -1,13 +1,14 @@
-use actix_web::{get, post, web, App, HttpResponse, HttpServer, Responder};
+use actix_cors::Cors;
+use actix_web::{get, web, App, HttpResponse, HttpServer, Responder};
 use bitmap_trie::dictionary::AttributeSearch;
 use csvexample::CsvDictionary;
+use serde::Deserialize;
+use serde::Serialize;
+use serde_json;
 use std::error::Error;
 use std::io::{Cursor, Read};
 use std::sync::{Arc, RwLock};
 use std::time::SystemTime;
-use serde::Deserialize;
-use serde::Serialize;
-use serde_json;
 
 // Define a serializable wrapper for the search response
 #[derive(Serialize)]
@@ -44,18 +45,21 @@ fn read_from_file(path: &str) -> Result<String, std::io::Error> {
 async fn srca(data: web::Data<AppState>, query: web::Query<SearchQuery>) -> impl Responder {
     let dict = data.dict.read().unwrap();
     let resp = dict.search(&query.term);
-    
+
     // Wrap the response in a serializable structure
     let json_response = SearchResponse {
-        results: resp.iter().map(|r| SearchResultJson {
-            term: r.term,
-            attribute: r.attribute,
-            original_entry: r.original_entry,
-            attribute_index: r.attribute_index,
-            position: r.position,
-        }).collect(),
+        results: resp
+            .iter()
+            .map(|r| SearchResultJson {
+                term: r.term,
+                attribute: r.attribute,
+                original_entry: r.original_entry,
+                attribute_index: r.attribute_index,
+                position: r.position,
+            })
+            .collect(),
     };
-    
+
     let json = serde_json::to_string(&json_response).unwrap();
     HttpResponse::Ok()
         .content_type("application/json")
@@ -78,7 +82,6 @@ async fn main() -> std::io::Result<()> {
     // Create and populate dictionary
     let dict = Arc::new(RwLock::new(CsvDictionary::new(attributes)));
 
-
     let app_state = web::Data::new(AppState {
         dict: dict.clone(), // your CsvDictionary instance
     });
@@ -91,14 +94,23 @@ async fn main() -> std::io::Result<()> {
         }
     });
 
-    HttpServer::new(move || App::new().
-        app_data(app_state.clone()).service(srca))
-        .bind(("127.0.0.1", 8080))?
-        .run()
-        .await
+
+    HttpServer::new(move || {
+        let cors = Cors::default()
+            .allowed_origin("http://localhost:5173")
+            .allowed_methods(vec!["GET"])
+            .allow_any_header();
+        App::new()
+            .wrap(cors)
+            .app_data(app_state.clone())
+            .service(srca)
+    })
+    .bind(("127.0.0.1", 8080))?
+    .run()
+    .await
 }
 
-fn load_data(dict :&mut CsvDictionary) -> Result<(), Box<dyn Error>> {
+fn load_data(dict: &mut CsvDictionary) -> Result<(), Box<dyn Error>> {
     println!("Loading data...");
     let now = SystemTime::now();
 
@@ -107,7 +119,6 @@ fn load_data(dict :&mut CsvDictionary) -> Result<(), Box<dyn Error>> {
     let csv_data = read_from_file("BooksDataset.csv")?;
 
     // Configure attributes for different types of searching
-
 
     let reader = Cursor::new(csv_data);
     let count = dict.load_from_csv(reader, true)?;
