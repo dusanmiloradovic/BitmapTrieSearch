@@ -34,10 +34,23 @@ impl Encoding for AsciiEncoding {
         ASCII_CHARS.chars().nth(idx as usize).unwrap()
     }
 
+    // TODO use graphemes for both encode and decode
+    // Maybe not for decode, instead of passing the string from trie, we could pass the start index and no of bytes(and return just the byte slice)
     fn translate_encode(&self, str: &str) -> String {
-        str.to_uppercase() //idx already skips the non-ascii chars
+        let mut ret = String::new();
+        for c in str.chars() {
+            let uc =c.to_uppercase().next().unwrap();
+            if ASCII_CHARS.find(&uc.to_string()).is_none() {
+                ret.push('_');
+            }else{
+                ret.push(uc);
+            }
+
+        }
+        ret
     }
 
+    // this will just get the slice in the future, I will not pass the str, instead the length of original(encoded) string in bytes
     fn translate_decode<'a>(&self, original_str: &'a str, ind: usize, str: &str) -> &'a str {
         // no need to compare, relying on the fact that translate_encode was done correctly
         // this is correct only if the encoded string has the same number of chars as the original
