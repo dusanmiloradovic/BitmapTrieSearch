@@ -35,27 +35,28 @@ pub struct SearchResult<'a> {
     pub dictionary_index: usize, // once the search is done, we can use this to get the dictionary entry
 }
 
-fn split_word(word: &str) -> Vec<(String, usize)> {
+fn split_word(word: &str) -> Vec<(String, usize, u16)> { // returns the byte boundary position, it will be used to find the word in the original string(slice from)
     let mut ret = Vec::new();
     let z = word.split_whitespace().collect::<Vec<&str>>();
     let mut position = 0;
     for j in 0..z.len() {
         // Find the position of this word part in the original string
         if let Some(byte_pos) = word[position..].find(z[j]) {
-            // Convert byte position to character position
-            position = word[..position + byte_pos]
-                .chars()
-                .count();
+            position = word[..position + byte_pos].len();
         }
         
         if j + DEFAULT_MULTIPLE_SEARCH_LENGTH < z.len() {
-            ret.push((z[j..j + DEFAULT_MULTIPLE_SEARCH_LENGTH].join(" "), position));
+            let s = z[j..j + DEFAULT_MULTIPLE_SEARCH_LENGTH].join(" ");
+            let len = s.len() as u16;
+            ret.push((s, position,len));
         } else {
-            ret.push((z[j..].join(" "), position));
+            let s = z[j..].join(" ");
+            let len = s.len() as u16;
+            ret.push((s, position,len));
         }
         
-        // Move position past the current word (in characters, not bytes)
-        position += z[j].chars().count();
+        // Move position past the current word (in bytes)
+        position += z[j].len();
     }
     ret
 }
@@ -85,13 +86,14 @@ impl Dictionary {
                     AttributeSearch::None => (),
                     AttributeSearch::Exact => {
                         let mut l = self.trie.write().unwrap();
-                        l.add_word(&data[k], self.entries.len() as u32, *u as u8, 0);
+                        let len = data[k].len() as u16;
+                        l.add_word(&data[k], self.entries.len() as u32, *u as u8, 0, len);
                     }
                     AttributeSearch::Multiple => {
                         let v = split_word(&data[k]);
-                        for (s, pos) in v {
+                        for (s, pos, len) in v {
                             let mut l = self.trie.write().unwrap();
-                            l.add_word(&s, self.entries.len() as u32, *u as u8, pos as u16);
+                            l.add_word(&s, self.entries.len() as u32, *u as u8, pos as u16,len);
                         }
                     }
                 }
@@ -108,7 +110,7 @@ impl Dictionary {
         let search_res = trie.search(&uw);
         let mut ret: Vec<SearchResult<'a>> = Vec::new();
         for TrieSearchResult { word, entries } in search_res {
-            for (dict_index, attribute, pos) in entries.entries {
+            for (dict_index, attribute, pos,len) in entries.entries {
                 if let Some(entry) = self.entries.get(dict_index as usize) {
                     let attr = match self.reverse_attribute_map.get(&attribute) {
                         Some(attr) => attr.as_str(),

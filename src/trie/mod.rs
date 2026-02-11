@@ -25,7 +25,7 @@ const MAX_SEARCH_RESULTS: usize = 10;
 
 #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub struct DictionaryMapEntry {
-    pub entries: Vec<(u32, u8, u16)>,
+    pub entries: Vec<(u32, u8, u16, u16)>,
     // each terminated word in trie maps to one dictionary entry and one attribute (if no attribute, use default attribute 0)
     // attribute is expected as u8, the dictionary itself should keep the mapping of attributes(if there is one)
     // the last entry is the word position in the original entry
@@ -86,6 +86,7 @@ impl Trie {
         dictionary_index: u32,
         dictionary_attribute: u8,
         entry_pos: u16,
+        len: u16,
     ) {
         let v = self.dictionary_map.get_mut(&curr_row);
         match v {
@@ -96,11 +97,11 @@ impl Trie {
                         return;
                     }
                 }
-                v.push((dictionary_index, dictionary_attribute, entry_pos));
+                v.push((dictionary_index, dictionary_attribute, entry_pos,len));
             }
             None => {
                 let e = DictionaryMapEntry {
-                    entries: vec![(dictionary_index, dictionary_attribute, entry_pos)],
+                    entries: vec![(dictionary_index, dictionary_attribute, entry_pos,len)],
                 };
                 self.dictionary_map.insert(curr_row, e);
             }
@@ -138,6 +139,7 @@ impl Trie {
         dictionary_index: u32,
         dictionary_attribute: u8,
         entry_pos: u16,
+        len: u16,
     ) {
         let mut curr_row = 0;
         let mut prev_row = 0;
@@ -194,7 +196,7 @@ impl Trie {
                 }
             }
         }
-        self.update_dictionary_entry(prev_row, dictionary_index, dictionary_attribute, entry_pos);
+        self.update_dictionary_entry(prev_row, dictionary_index, dictionary_attribute, entry_pos,len);
     }
 
     fn add_trie_entry(&mut self, tt: TrieEntryV) -> u32 {
