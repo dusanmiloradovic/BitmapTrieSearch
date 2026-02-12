@@ -1,5 +1,7 @@
 use std::fmt::Debug;
 use std::sync::OnceLock;
+use unicode_segmentation::UnicodeSegmentation;
+
 
 // This is a 64 char set that will be supported for trie search
 // 64 for bitmap maps to u64
@@ -11,7 +13,7 @@ pub trait Encoding: Debug {
     // Because we lose the information when encoding, we need an original string to compare, if match we return the part of the original string that was encoded
     fn translate_encode(&self, str: &str) -> String;
     //we can't always just use encode, because se might want to transliterate one char to multiple trie chars (for example Š to SH)
-    fn translate_decode<'a>(&self, original_str: &'a str, ind: usize, str: &str) -> &'a str;
+    fn translate_decode<'a>(&self, original_str: &'a str, ind: usize, len: u16) -> &'a str;
     fn get_separator(&self) -> char {
         ' '
     }
@@ -34,33 +36,28 @@ impl Encoding for AsciiEncoding {
         ASCII_CHARS.chars().nth(idx as usize).unwrap()
     }
 
-    // TODO use graphemes for both encode and decode
-    // Maybe not for decode, instead of passing the string from trie, we could pass the start index and no of bytes(and return just the byte slice)
     fn translate_encode(&self, str: &str) -> String {
         let mut ret = String::new();
-        for c in str.chars() {
-            let uc =c.to_uppercase().next().unwrap();
+        let g = UnicodeSegmentation::graphemes(str, true).collect::<Vec<&str>>();
+        for z in g {
+            let uc = z.chars().next().unwrap().to_uppercase().next().unwrap(); // first character of grapheme in upper-case
             if ASCII_CHARS.find(&uc.to_string()).is_none() {
                 ret.push('_');
             }else{
                 ret.push(uc);
             }
-
         }
         ret
     }
 
     // this will just get the slice in the future, I will not pass the str, instead the length of original(encoded) string in bytes
-    fn translate_decode<'a>(&self, original_str: &'a str, ind: usize, str: &str) -> &'a str {
+    fn translate_decode<'a>(&self, original_str: &'a str, ind: usize, len: u16) -> &'a str {
         // no need to compare, relying on the fact that translate_encode was done correctly
         // this is correct only if the encoded string has the same number of chars as the original
-        if let Some(s) = original_str.get(ind..ind + str.len()) {
+        if let Some(s) = original_str.get(ind..ind + len as usize) {
             s
         } else {
-            print!("translate_decode: index out of bounds: ind={}, str.len={}, original_str.len={}\n", ind, str.len(), original_str.len());
-            print!(
-            "original_str: '{}', str: '{}'\n", original_str,str);
-            print!("**********************************\n");
+            print!("translate_decode: index out of bounds: ind={}, str.len={}, original_str.len={}\n", ind, len, original_str.len());
             ""
         }
     }
@@ -99,8 +96,8 @@ pub fn translate_encode(str: &str) -> String {
     get_encoding().translate_encode(str)
 }
 
-pub fn translate_decode<'a>(original_str: &'a str, ind: usize, str: &str) -> &'a str {
-    get_encoding().translate_decode(original_str, ind, str)
+pub fn translate_decode<'a>(original_str: &'a str, ind: usize, len: u16) -> &'a str {
+    get_encoding().translate_decode(original_str, ind, len)
 }
 
 #[cfg(test)]

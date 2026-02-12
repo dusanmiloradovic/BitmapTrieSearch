@@ -86,7 +86,6 @@ impl Dictionary {
                     AttributeSearch::None => (),
                     AttributeSearch::Exact => {
                         let mut l = self.trie.write().unwrap();
-                        let len = data[k].len() as u16;
                         l.add_word(&data[k], self.entries.len() as u32, *u as u8, 0);
                     }
                     AttributeSearch::Multiple => {
@@ -117,7 +116,7 @@ impl Dictionary {
                         None => "", //default attribute
                     };
                     if let Some(original_entry) = entry.0.get(&(attribute as usize)) {
-                        let w = translate_decode(original_entry, pos as usize, &word);
+                        let w = translate_decode(original_entry, pos as usize, len);
                         let sr = SearchResult {
                             term: w,
                             attribute: attr,
