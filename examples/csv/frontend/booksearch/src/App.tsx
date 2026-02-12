@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react'
+import { useState, useMemo } from 'react'
+import debounce from 'lodash.debounce'
 import {
   Autocomplete,
   AutocompleteInput,
@@ -12,36 +13,40 @@ import { searchBooks } from './api/search'
 import type { SearchResult } from './types/search'
 
 function App() {
-  const [value, setValue] = useState('')
   const [results, setResults] = useState<SearchResult[]>([])
   const [loading, setLoading] = useState(false)
 
-  useEffect(() => {
-    if (!value?.trim()) {
+  const debouncedSearch = useMemo(
+    () =>
+      debounce(async (query: string) => {
+        setLoading(true)
+        try {
+          const response = await searchBooks(query)
+          setResults(response.results)
+        } catch (error) {
+          console.error('Search failed:', error)
+          setResults([])
+        } finally {
+          setLoading(false)
+        }
+      }, 300),
+    []
+  )
+
+  const handleValueChange = (details: string) => {
+    if (!details?.trim()) {
       setResults([])
+      debouncedSearch.cancel()
       return
     }
 
-    const debounce = setTimeout(async () => {
-      setLoading(true)
-      try {
-        const response = await searchBooks(value)
-        setResults(response.results)
-      } catch (error) {
-        console.error('Search failed:', error)
-        setResults([])
-      } finally {
-        setLoading(false)
-      }
-    }, 50)
-
-    return () => clearTimeout(debounce)
-  }, [value])
+    debouncedSearch(details)
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 px-4 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-7xl pt-8">
-        <Autocomplete value={value} onValueChange={(details) => setValue(details)}>
+        <Autocomplete onValueChange={handleValueChange}>
           <AutocompleteInput placeholder="Search books..." />
           <AutocompletePositioner>
             <AutocompletePopup>
