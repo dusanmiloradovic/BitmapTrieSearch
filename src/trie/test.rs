@@ -77,19 +77,19 @@ fn test_add_with_dictionary_index() {
         (
             "DRAGAN".to_string(),
             DictionaryMapEntry {
-                entries: vec![(0, 0, 0)],
+                entries: vec![(0, 0, 0, 6)],
             },
         ),
         (
             "DRAGANA".to_string(),
             DictionaryMapEntry {
-                entries: vec![(1, 0, 0)],
+                entries: vec![(1, 0, 0, 7)],
             },
         ),
         (
             "DRNI".to_string(),
             DictionaryMapEntry {
-                entries: vec![(2, 0, 0)],
+                entries: vec![(2, 0, 0, 4)],
             },
         ),
     ];
@@ -112,19 +112,19 @@ fn test_add_with_dictionary_index_with_duplicate_word() {
         (
             "DRAGAN".to_string(),
             DictionaryMapEntry {
-                entries: vec![(0, 0, 0), (5, 0, 0)], // not adding to dictionary entry, why??
+                entries: vec![(0, 0, 0, 6), (5, 0, 0, 6)], // not adding to dictionary entry, why??
             },
         ),
         (
             "DRAGANA".to_string(),
             DictionaryMapEntry {
-                entries: vec![(1, 0, 0), (7, 0, 0)],
+                entries: vec![(1, 0, 0, 7), (7, 0, 0, 7)],
             },
         ),
         (
             "DRNI".to_string(),
             DictionaryMapEntry {
-                entries: vec![(2, 0, 0)],
+                entries: vec![(2, 0, 0, 4)],
             },
         ),
     ];

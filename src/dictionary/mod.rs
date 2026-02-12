@@ -87,13 +87,13 @@ impl Dictionary {
                     AttributeSearch::Exact => {
                         let mut l = self.trie.write().unwrap();
                         let len = data[k].len() as u16;
-                        l.add_word(&data[k], self.entries.len() as u32, *u as u8, 0, len);
+                        l.add_word(&data[k], self.entries.len() as u32, *u as u8, 0);
                     }
                     AttributeSearch::Multiple => {
                         let v = split_word(&data[k]);
                         for (s, pos, len) in v {
                             let mut l = self.trie.write().unwrap();
-                            l.add_word(&s, self.entries.len() as u32, *u as u8, pos as u16,len);
+                            l.add_word(&s, self.entries.len() as u32, *u as u8, pos as u16);
                         }
                     }
                 }
@@ -184,7 +184,7 @@ mod test {
         ];
         assert_eq!(
             g.iter()
-                .map(|(s, pos)| (s.as_str(), *pos))
+                .map(|(s, pos,_)| (s.as_str(), *pos))
                 .collect::<Vec<_>>(),
             expected
         );

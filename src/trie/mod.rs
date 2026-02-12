@@ -139,8 +139,8 @@ impl Trie {
         dictionary_index: u32,
         dictionary_attribute: u8,
         entry_pos: u16,
-        len: u16,
     ) {
+        let len = word.len() as u16; // slice in bytes
         let mut curr_row = 0;
         let mut prev_row = 0;
         let mut should_add = false;
