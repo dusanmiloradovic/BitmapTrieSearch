@@ -9,7 +9,7 @@ pub struct NodeIndex {
                     // dictionary map
 }
 
-pub const MAX_DIRECT_ENTRIES: usize = 5;
+
 
 #[derive(Clone)]
 pub struct TrieEntryG {

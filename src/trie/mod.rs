@@ -3,10 +3,11 @@ pub mod entry;
 mod test;
 
 pub use self::entry::{
-    NodeIndex, TrieEntry, TrieEntryG, TrieEntryOp, TrieEntryV, MAX_DIRECT_ENTRIES,
+    NodeIndex, TrieEntry, TrieEntryG, TrieEntryOp, TrieEntryV,
 };
 use crate::encoding::idx;
 use std::collections::HashMap;
+use crate::constants::{MAX_DIRECT_ENTRIES, MAX_SEARCH_RESULTS};
 /*
 This is the Trie implementation for contextual search.
 The primary use case is autocomplete search in context.
@@ -21,7 +22,7 @@ so the dictionary will be indirect.
 In node index we store the address of dictionary entries, and from there we do the lookup.
  */
 
-const MAX_SEARCH_RESULTS: usize = 10;
+
 
 #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub struct DictionaryMapEntry {

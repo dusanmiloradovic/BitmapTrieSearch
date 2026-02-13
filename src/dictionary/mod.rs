@@ -108,7 +108,9 @@ impl Dictionary {
         let uw = word.to_uppercase();
         let search_res = trie.search(&uw);
         let mut ret: Vec<SearchResult<'a>> = Vec::new();
+        print!("### search_res len is {}", search_res.len());
         for TrieSearchResult { word, entries } in search_res {
+            print!("#### entries len is {}", entries.entries.len());
             for (dict_index, attribute, pos,len) in entries.entries {
                 if let Some(entry) = self.entries.get(dict_index as usize) {
                     let attr = match self.reverse_attribute_map.get(&attribute) {
