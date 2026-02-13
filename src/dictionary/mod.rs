@@ -5,6 +5,7 @@ use std::sync::{Arc, RwLock};
 
 const DEFAULT_MULTIPLE_SEARCH_LENGTH: usize = 3;
 
+#[derive(Debug,Clone)]
 pub struct DictionaryEntry(HashMap<usize, String>);
 // each attribute of a dictionaryentry is one string in a vector, the order is defined in the dictionary
 // attribute is mapped to a usize, that is a position in the vector
@@ -19,21 +20,23 @@ pub enum AttributeSearch {
 // in other words the search is for the 3 consecutive words(we can define the different default)
 
 pub struct Dictionary {
-    entries: Vec<DictionaryEntry>,
+    entries: Arc<RwLock<Vec<DictionaryEntry>>>,
     attribute_map: HashMap<String, (usize, AttributeSearch)>,
     reverse_attribute_map: HashMap<u8, String>,
     trie: Arc<RwLock<Trie>>,
 }
 
-pub struct SearchResult<'a> {
-    pub term: &'a str,
-    pub attribute: &'a str,
-    pub original_entry: &'a str,
+pub struct SearchResult {
+    pub term: String,
+    pub attribute: String,
+    pub original_entry: String,
     pub attribute_index: usize,
     pub position: usize,
-    pub dictionary_entry: &'a DictionaryEntry,
+    pub dictionary_entry: DictionaryEntry,
     pub dictionary_index: usize, // once the search is done, we can use this to get the dictionary entry
 }
+
+
 
 fn split_word(word: &str) -> Vec<(String, usize, u16)> { // returns the byte boundary position, it will be used to find the word in the original string(slice from)
     let mut ret = Vec::new();
@@ -71,13 +74,13 @@ impl Dictionary {
             reverse_attribute_map.insert(attribute_map.len() as u8, attr);
         }
         Dictionary {
-            entries: Vec::new(),
+            entries: Arc::new(RwLock::new( Vec::new())),
             attribute_map,
             reverse_attribute_map,
             trie: Arc::new(RwLock::new(Trie::new())),
         }
     }
-    pub fn add_dictionary_entry(&mut self, data: HashMap<String, String>) {
+    pub fn add_dictionary_entry(&self, data: HashMap<String, String>) {
         let mut m: HashMap<usize, String> = HashMap::new();
         data.keys().for_each(|k| {
             if let Some((u, attr_s)) = self.attribute_map.get(k) {
@@ -86,13 +89,15 @@ impl Dictionary {
                     AttributeSearch::None => (),
                     AttributeSearch::Exact => {
                         let mut l = self.trie.write().unwrap();
-                        l.add_word(&data[k], self.entries.len() as u32, *u as u8, 0);
+                        let entries = self.entries.read().unwrap();
+                        l.add_word(&data[k], entries.len() as u32, *u as u8, 0);
                     }
                     AttributeSearch::Multiple => {
                         let v = split_word(&data[k]);
                         for (s, pos, len) in v {
                             let mut l = self.trie.write().unwrap();
-                            l.add_word(&s, self.entries.len() as u32, *u as u8, pos as u16);
+                            let entries = self.entries.read().unwrap();
+                            l.add_word(&s, entries.len() as u32, *u as u8, pos as u16);
                         }
                     }
                 }
@@ -101,18 +106,22 @@ impl Dictionary {
         if m.len() == 0 {
             return;
         }
-        self.entries.push(DictionaryEntry(m));
+        let mut entries = self.entries.write().unwrap();
+        entries.push(DictionaryEntry(m));
     }
-    pub fn search<'a>(&'a self, word: &str) -> Vec<SearchResult<'a>> {
+    pub fn search(&self, word: &str) -> Vec<SearchResult> {
         let trie = self.trie.read().unwrap();
         let uw = word.to_uppercase();
         let search_res = trie.search(&uw);
-        let mut ret: Vec<SearchResult<'a>> = Vec::new();
+        let mut ret: Vec<SearchResult> = Vec::new();
         print!("### search_res len is {}", search_res.len());
+        let entries_guard = self.entries.read().unwrap();
         for TrieSearchResult { word, entries } in search_res {
+
             print!("#### entries len is {}", entries.entries.len());
             for (dict_index, attribute, pos,len) in entries.entries {
-                if let Some(entry) = self.entries.get(dict_index as usize) {
+
+                if let Some(entry) = entries_guard.get(dict_index as usize) {
                     let attr = match self.reverse_attribute_map.get(&attribute) {
                         Some(attr) => attr.as_str(),
                         None => "", //default attribute
@@ -120,12 +129,12 @@ impl Dictionary {
                     if let Some(original_entry) = entry.0.get(&(attribute as usize)) {
                         let w = translate_decode(original_entry, pos as usize, len);
                         let sr = SearchResult {
-                            term: w,
-                            attribute: attr,
-                            original_entry,
+                            term: w.to_string(),
+                            attribute: attr.to_string(),
+                            original_entry: original_entry.to_string(),
                             attribute_index: attribute as usize,
                             position: pos as usize,
-                            dictionary_entry: entry,
+                            dictionary_entry: entry.clone(),
                             dictionary_index: dict_index as usize,
                         };
                         ret.push(sr);
@@ -133,7 +142,7 @@ impl Dictionary {
                 }
             }
         }
-        ret
+       ret
     }
 }
 

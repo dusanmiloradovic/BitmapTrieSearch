@@ -20,7 +20,7 @@ impl CsvDictionary {
 
     /// Load data from CSV reader into the dictionary
     pub fn load_from_csv<R: Read>(
-        &mut self,
+        &self,
         reader: R,
         has_headers: bool,
     ) -> Result<usize, Box<dyn Error>> {
@@ -59,7 +59,7 @@ impl CsvDictionary {
     }
 
     /// Search the dictionary
-    pub fn search(&self, term: &str) -> Vec<bitmap_trie::dictionary::SearchResult<'_>> {
+    pub fn search(&self, term: &str) -> Vec<bitmap_trie::dictionary::SearchResult> {
         self.dictionary.search(term)
     }
 }

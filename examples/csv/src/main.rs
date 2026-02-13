@@ -7,7 +7,7 @@ use serde::Serialize;
 use serde_json;
 use std::error::Error;
 use std::io::{Cursor, Read};
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc};
 use std::time::SystemTime;
 
 // Define a serializable wrapper for the search response
@@ -27,7 +27,7 @@ struct SearchResultJson<'a> {
 }
 
 struct AppState {
-    dict: Arc<RwLock<CsvDictionary>>,
+    dict: Arc<CsvDictionary>,
 }
 
 #[derive(Deserialize)]
@@ -44,7 +44,7 @@ fn read_from_file(path: &str) -> Result<String, std::io::Error> {
 
 #[get("/search")]
 async fn srca(data: web::Data<AppState>, query: web::Query<SearchQuery>) -> impl Responder {
-    let dict = data.dict.read().unwrap();
+    let dict = Arc::clone(&data.dict);
     let resp = dict.search(&query.term);
 
     // Wrap the response in a serializable structure
@@ -52,9 +52,9 @@ async fn srca(data: web::Data<AppState>, query: web::Query<SearchQuery>) -> impl
         results: resp
             .iter()
             .map(|r| SearchResultJson {
-                term: r.term,
-                attribute: r.attribute,
-                original_entry: r.original_entry,
+                term: &r.term,
+                attribute: &r.attribute,
+                original_entry: &r.original_entry,
                 attribute_index: r.attribute_index,
                 position: r.position,
                 dictionary_index: r.dictionary_index,
@@ -82,16 +82,13 @@ async fn main() -> std::io::Result<()> {
     ];
 
     // Create and populate dictionary
-    let dict = Arc::new(RwLock::new(CsvDictionary::new(attributes)));
-
+    let dict = Arc::new(CsvDictionary::new(attributes));
     let app_state = web::Data::new(AppState {
-        dict: dict.clone(), // your CsvDictionary instance
+        dict: Arc::clone(&dict), // your CsvDictionary instance
     });
-
-    let dict_for_loading = dict.clone();
-    tokio::task::spawn_blocking(move || {
-        let mut dict = dict_for_loading.write().unwrap();
-        if let Err(e) = load_data(&mut dict) {
+    tokio::task::spawn( async move {
+        let dict = Arc::clone(&dict);
+        if let Err(e) = load_data(&dict) {
             eprintln!("Failed to load data: {}", e);
         }
     });
@@ -112,7 +109,7 @@ async fn main() -> std::io::Result<()> {
     .await
 }
 
-fn load_data(dict: &mut CsvDictionary) -> Result<(), Box<dyn Error>> {
+fn load_data(dict: &CsvDictionary) -> Result<(), Box<dyn Error>> {
     println!("Loading data...");
     let now = SystemTime::now();
 
