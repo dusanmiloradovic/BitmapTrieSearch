@@ -2,6 +2,7 @@ use crate::encoding::translate_decode;
 use crate::trie::{Trie, TrieSearchResult};
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
+use crate::constants::{MAX_SEARCH_RESULTS, MIN_TERM_LENGTH};
 
 const DEFAULT_MULTIPLE_SEARCH_LENGTH: usize = 3;
 
@@ -110,15 +111,15 @@ impl Dictionary {
         entries.push(DictionaryEntry(m));
     }
     pub fn search(&self, word: &str) -> Vec<SearchResult> {
+        if word.len() < MIN_TERM_LENGTH {
+            return Vec::new();
+        }
         let trie = self.trie.read().unwrap();
         let uw = word.to_uppercase();
         let search_res = trie.search(&uw);
         let mut ret: Vec<SearchResult> = Vec::new();
-        print!("### search_res len is {}", search_res.len());
         let entries_guard = self.entries.read().unwrap();
         for TrieSearchResult { word, entries } in search_res {
-
-            print!("#### entries len is {}", entries.entries.len());
             for (dict_index, attribute, pos,len) in entries.entries {
 
                 if let Some(entry) = entries_guard.get(dict_index as usize) {
@@ -138,6 +139,9 @@ impl Dictionary {
                             dictionary_index: dict_index as usize,
                         };
                         ret.push(sr);
+                        if ret.len() >= MAX_SEARCH_RESULTS {
+                            return ret;
+                        }
                     }
                 }
             }
