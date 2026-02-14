@@ -212,7 +212,7 @@ impl Trie {
         position
     }
 
-    pub fn search(&self, term: &str) -> Vec<TrieSearchResult> {
+    pub fn search(&self, term: &str, ignore_max_search_results : bool) -> Vec<TrieSearchResult> {
         let mut res = Vec::new();
         let mut curr_row = 0;
         let mut last_terminated = false;
@@ -246,7 +246,7 @@ impl Trie {
             let w = term.to_string() + &c.to_string();
             bfs_stack.push((w, ni));
         }
-        while bfs_stack.len() > 0 && res.len() < MAX_SEARCH_RESULTS {
+        while bfs_stack.len() > 0 && (ignore_max_search_results || res.len() < MAX_SEARCH_RESULTS) {
             let e = bfs_stack.pop();
             match e {
                 None => break,

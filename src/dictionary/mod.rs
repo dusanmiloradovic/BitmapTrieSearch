@@ -1,4 +1,4 @@
-use crate::encoding::translate_decode;
+use crate::encoding::{translate_decode, translate_encode};
 use crate::trie::{Trie, TrieSearchResult};
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
@@ -37,7 +37,15 @@ pub struct SearchResult {
     pub dictionary_index: usize, // once the search is done, we can use this to get the dictionary entry
 }
 
-
+// Trie save up to DEFAULT_MULTIPLE_SEARCH_LENGTH words, after that we need to filter the results here
+fn longest_term(word: &str) -> (bool, String) {
+    let ws = word.trim().split_whitespace();
+    if ws.clone().count() <= DEFAULT_MULTIPLE_SEARCH_LENGTH {
+        return (false, word.to_string());
+    }
+    let w = ws.take(DEFAULT_MULTIPLE_SEARCH_LENGTH).collect::<Vec<_>>().join(" ");
+   (true, w)
+}
 
 fn split_word(word: &str) -> Vec<(String, usize, u16)> { // returns the byte boundary position, it will be used to find the word in the original string(slice from)
     let mut ret = Vec::new();
@@ -110,13 +118,18 @@ impl Dictionary {
         let mut entries = self.entries.write().unwrap();
         entries.push(DictionaryEntry(m));
     }
-    pub fn search(&self, word: &str) -> Vec<SearchResult> {
-        if word.len() < MIN_TERM_LENGTH {
+    pub fn search(&self, term: &str) -> Vec<SearchResult> {
+        // term is a search term , consists of words separated by whitespace
+        // in the underlying trie, we save max of DEFAULT_MULTIPLE_SEARCH_LENGTH words
+        // if the term has more words, we need to get all the results from the trie for the DEFAULT_MULTIPLE_SEARCH_LENGTH words
+        // and filter them
+        if term.len() < MIN_TERM_LENGTH {
             return Vec::new();
         }
+        let (filter_dict, trie_term) = longest_term(term);
         let trie = self.trie.read().unwrap();
-        let uw = word.to_uppercase();
-        let search_res = trie.search(&uw);
+        let uw = term.to_uppercase();
+        let search_res = trie.search(&trie_term.to_uppercase(), filter_dict);
         let mut ret: Vec<SearchResult> = Vec::new();
         let entries_guard = self.entries.read().unwrap();
         for TrieSearchResult { word, entries } in search_res {
@@ -139,12 +152,36 @@ impl Dictionary {
                             dictionary_index: dict_index as usize,
                         };
                         ret.push(sr);
-                        if ret.len() >= MAX_SEARCH_RESULTS {
+                        if !filter_dict && ret.len() >= MAX_SEARCH_RESULTS {
                             return ret;
                         }
                     }
                 }
             }
+        }
+        if filter_dict{
+            let encoded_search_term = translate_encode(term);
+            let mut fitered_res: Vec<SearchResult> = Vec::new();
+            for sr in ret {
+                let encdoded_original = translate_encode(sr.original_entry.as_str());
+
+                if encdoded_original.contains(&encoded_search_term) {
+                    let new_sr = SearchResult {
+                        term: term.to_string(),
+                        attribute: sr.attribute,
+                        original_entry: sr.original_entry,
+                        attribute_index: sr.attribute_index,
+                        position: sr.position,
+                        dictionary_entry: sr.dictionary_entry,
+                        dictionary_index: sr.dictionary_index,
+                    };
+                    fitered_res.push(new_sr);
+                    if fitered_res.len() >= MAX_SEARCH_RESULTS {
+                        return fitered_res;
+                    }
+                }
+            }
+            return fitered_res;
         }
        ret
     }
@@ -209,13 +246,13 @@ mod test {
         let d = prepare_dictionary();
         let lock = d.trie.read().unwrap();
         let rez = lock
-            .search("CO")
+            .search("CO", false)
             .iter()
             .map(|x| x.word.clone())
             .collect::<Vec<String>>();
         assert_eq!(rez, vec!["COROLLA".to_string()]);
         let rez2 = lock
-            .search("123")
+            .search("123", false)
             .iter()
             .map(|x| x.word.clone())
             .collect::<Vec<String>>();

@@ -13,7 +13,7 @@ fn prepare_trie() -> Trie {
 fn test_add() {
     let t = prepare_trie();
     let mut p = t
-        .search("DR")
+        .search("DR",false)
         .iter()
         .map(|x| x.word.clone())
         .collect::<Vec<String>>();
@@ -30,7 +30,7 @@ fn test_add() {
 fn test_search_exact() {
     let t = prepare_trie();
     let p = t
-        .search("DRAGAN")
+        .search("DRAGAN",false)
         .iter()
         .map(|x| x.word.clone())
         .collect::<Vec<String>>();
@@ -43,7 +43,7 @@ fn test_search_exact_basic() {
     let mut t = Trie::new();
     t.add_word("dragan", 0, 0, 0);
     let p = t
-        .search("DRAGAN")
+        .search("DRAGAN",false)
         .iter()
         .map(|x| x.word.clone())
         .collect::<Vec<String>>();
@@ -56,7 +56,7 @@ fn test_search_exact_basic_two() {
     t.add_word("dragan", 0, 0, 0);
     t.add_word("dragana", 1, 0, 0);
     let p = t
-        .search("DRAGAN")
+        .search("DRAGAN", false)
         .iter()
         .map(|x| x.word.clone())
         .collect::<Vec<String>>();
@@ -68,7 +68,7 @@ fn test_search_exact_basic_two() {
 fn test_add_with_dictionary_index() {
     let t = prepare_trie();
     let mut p = t
-        .search("DR")
+        .search("DR", false)
         .iter()
         .map(|x| (x.word.clone(), x.entries.clone()))
         .collect::<Vec<(String, DictionaryMapEntry)>>();
@@ -103,7 +103,7 @@ fn test_add_with_dictionary_index_with_duplicate_word() {
     tr.add_word("dragan", 5, 0, 0);
     tr.add_word("dragana", 7, 0, 0);
     let mut p = tr
-        .search("DR")
+        .search("DR", false)
         .iter()
         .map(|x| (x.word.clone(), x.entries.clone()))
         .collect::<Vec<(String, DictionaryMapEntry)>>();
@@ -139,7 +139,7 @@ fn test_word_with_parent() {
     tr.add_word("dragan miocinovic", 5, 0, 0);
     //println!("{:#?}", tr);
     let p = tr
-        .search("DRAGAN MIOC")
+        .search("DRAGAN MIOC", false)
         .iter()
         .map(|x| x.word.clone())
         .collect::<Vec<String>>();
@@ -151,7 +151,7 @@ fn test_word_with_parent() {
 fn should_be_empty() {
     let tr = prepare_trie();
     let p = tr
-        .search("dusana")
+        .search("dusana",false)
         .iter()
         .map(|x| x.word.clone())
         .collect::<Vec<String>>();
@@ -164,7 +164,7 @@ fn basic_deletion() {
     let mut trie = prepare_trie();
     trie.delete_word("dragana", 1, 0);
     let p = trie
-        .search("DRAGAN")
+        .search("DRAGAN", false)
         .iter()
         .map(|x| x.word.clone())
         .collect::<Vec<String>>();
@@ -177,7 +177,7 @@ fn delete_word_with_children() {
     let mut trie = prepare_trie();
     trie.delete_word("dragan", 0, 0);
     let p = trie
-        .search("DRAGAN")
+        .search("DRAGAN", false)
         .iter()
         .map(|x| x.word.clone())
         .collect::<Vec<String>>();
@@ -202,7 +202,7 @@ fn reusing_trie_entry_slots() {
     assert_eq!(len1, len2);
 
     let p = t
-        .search("JULIAN")
+        .search("JULIAN", false)
         .iter()
         .map(|x| x.word.clone())
         .collect::<Vec<String>>();
@@ -213,7 +213,7 @@ fn reusing_trie_entry_slots() {
     //t.add_word("monday",6,0);
     // will it owerwrite previous word?
     let pp = t
-        .search("JULIAN")
+        .search("JULIAN", false)
         .iter()
         .map(|x| x.word.clone())
         .collect::<Vec<String>>();
