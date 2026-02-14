@@ -98,7 +98,7 @@ function App() {
                         handleItemClick( result );
                       } }
                     >
-                      { highlightTerm( result.original_entry , result.term ) }
+                      { highlightTerm( result.original_entry , searchTerm ) }
                     </AutocompleteItem>
                   ) }
                 </AutocompleteCollection>

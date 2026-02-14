@@ -33,6 +33,7 @@ struct AppState {
 #[derive(Deserialize)]
 struct SearchQuery {
     term: String,
+    id: String,
 }
 
 fn read_from_file(path: &str) -> Result<String, std::io::Error> {
@@ -66,6 +67,11 @@ async fn srca(data: web::Data<AppState>, query: web::Query<SearchQuery>) -> impl
     HttpResponse::Ok()
         .content_type("application/json")
         .body(json)
+}
+
+async fn get_dict_entry(data: web::Data<AppState>, query: web::Query<SearchQuery>) -> impl Responder {
+    let dict = Arc::clone(&data.dict);
+    let resp = dict.search(&query.id);
 }
 
 #[actix_web::main]
