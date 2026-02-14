@@ -186,7 +186,7 @@ impl Dictionary {
        ret
     }
 
-    pub fn get_entry(&self, index: usize) -> HashMap<String, String> {
+    pub fn get(&self, index: usize) -> HashMap<String, String> {
         let mut ret = HashMap::new();
        if let Some(entry) = self.entries.read().unwrap().get(index){
            let hm =&entry.0;

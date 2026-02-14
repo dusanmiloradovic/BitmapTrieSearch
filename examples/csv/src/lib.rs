@@ -62,6 +62,14 @@ impl CsvDictionary {
     pub fn search(&self, term: &str) -> Vec<bitmap_trie::dictionary::SearchResult> {
         self.dictionary.search(term)
     }
+
+    pub fn get(&self, id: &str) -> HashMap<String, String> {
+        if let Ok(id) = id.parse::<usize>() {
+            self.dictionary.get(id)
+        } else {
+            HashMap::new()
+        }
+    }
 }
 
 #[cfg(test)]

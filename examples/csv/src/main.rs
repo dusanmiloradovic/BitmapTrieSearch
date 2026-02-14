@@ -7,7 +7,7 @@ use serde::Serialize;
 use serde_json;
 use std::error::Error;
 use std::io::{Cursor, Read};
-use std::sync::{Arc};
+use std::sync::Arc;
 use std::time::SystemTime;
 
 // Define a serializable wrapper for the search response
@@ -33,6 +33,10 @@ struct AppState {
 #[derive(Deserialize)]
 struct SearchQuery {
     term: String,
+}
+
+#[derive(Deserialize)]
+struct IdGet {
     id: String,
 }
 
@@ -69,9 +73,17 @@ async fn srca(data: web::Data<AppState>, query: web::Query<SearchQuery>) -> impl
         .body(json)
 }
 
-async fn get_dict_entry(data: web::Data<AppState>, query: web::Query<SearchQuery>) -> impl Responder {
+#[get("/get")]
+async fn get(
+    data: web::Data<AppState>,
+    query: web::Query<IdGet>,
+) -> impl Responder {
     let dict = Arc::clone(&data.dict);
-    let resp = dict.search(&query.id);
+    let resp = dict.get(&query.id);
+    let json = serde_json::to_string(&resp).unwrap();
+    HttpResponse::Ok()
+        .content_type("application/json")
+        .body(json)
 }
 
 #[actix_web::main]
@@ -92,13 +104,12 @@ async fn main() -> std::io::Result<()> {
     let app_state = web::Data::new(AppState {
         dict: Arc::clone(&dict), // your CsvDictionary instance
     });
-    tokio::task::spawn( async move {
+    tokio::task::spawn(async move {
         let dict = Arc::clone(&dict);
         if let Err(e) = load_data(&dict) {
             eprintln!("Failed to load data: {}", e);
         }
     });
-
 
     HttpServer::new(move || {
         let cors = Cors::default()
@@ -109,6 +120,7 @@ async fn main() -> std::io::Result<()> {
             .wrap(cors)
             .app_data(app_state.clone())
             .service(srca)
+            .service(get)
     })
     .bind(("127.0.0.1", 8080))?
     .run()

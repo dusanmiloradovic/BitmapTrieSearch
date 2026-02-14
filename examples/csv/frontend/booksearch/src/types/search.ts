@@ -4,6 +4,7 @@ export interface SearchResult {
   original_entry: string;
   attribute_index: number;
   position: number;
+  dictionary_index: number;
 }
 
 export interface SearchResponse {
