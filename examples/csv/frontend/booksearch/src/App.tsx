@@ -31,6 +31,7 @@ function App() {
   const [ loading , setLoading ] = useState( false )
   const [ searchTerm , setSearchTerm ] = useState( '' )
   const [ book , setBook ] = useState<Record<string , string>>( {} )
+  const [ portalContainer , setPortalContainer ] = useState<HTMLDivElement | null>( null )
 
   const debouncedSearch = useMemo(
     () =>
@@ -51,8 +52,6 @@ function App() {
 
 
   const handleItemClick =async  ( result: SearchResult ) => {
-    console.log( 'Item clicked:' , result )
-
     // Ensure the search term is preserved after any potential component updates
     const currentTerm = searchTerm
     setTimeout( () => {
@@ -60,9 +59,6 @@ function App() {
         setSearchTerm( currentTerm )
       }
     } , 0 )
-
-    // Handle the click - you can add your custom logic here
-    // For example, navigate to a detail page, add to favorites, etc.
     const res_book = await getBook( result.dictionary_index as unknown as string)
     console.log( res_book )
     setBook( res_book)
@@ -70,7 +66,7 @@ function App() {
 
   return (
     <div className="min-h-screen bg-gray-50 px-4 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-7xl pt-8">
+      <div className="mx-auto max-w-7xl pt-8 relative z-50" ref={ setPortalContainer }>
         <Autocomplete items={ results }>
           <AutocompleteInput
             placeholder="Search books..."
@@ -88,8 +84,8 @@ function App() {
               debouncedSearch( value )
             } }
           />
-          <AutocompletePositioner>
-            <AutocompletePopup>
+          <AutocompletePositioner container={ portalContainer }>
+            <AutocompletePopup >
               <AutocompleteList>
                 <AutocompleteCollection>
                   { ( result: SearchResult ) => (
@@ -99,7 +95,7 @@ function App() {
                       onClick={ ( ev ) => {
                         ev.preventDefault();
                         ev.stopPropagation();
-                        handleItemClick( result );
+                        handleItemClick( result ).catch(console.error);
                       } }
                     >
                       { highlightTerm( result.original_entry , searchTerm ) }
@@ -117,8 +113,12 @@ function App() {
       <div className="mx-auto max-w-7xl py-12 px-4 sm:px-6 lg:px-8">
         <div className="space-y-12">
           <div className="space-y-5 sm:space-y-4 md:max-w-xl lg:max-w-3xl xl:max-w-none">
-            <h2 className="text-3xl font-extrabold tracking-tight sm:text-4xl">{book.title}</h2>
-            <p className="text-xl text-gray-500">{book.author}</p>
+            <h2 className="text-3xl font-extrabold tracking-tight sm:text-4xl">{book.Title}</h2>
+            <p className="text-xl text-gray-500">{book.Authors}</p>
+            <p className="text-base text-gray-500">{book.Publisher}</p>
+            <p className="text-xs text-gray-500">{book.Description}</p>
+            <p className="text-xs text-gray-500">{book["Publish Date"]}</p>
+            <p className="text-xs text-gray-500">{book.Price}</p>
           </div>
         </div>
       </div>

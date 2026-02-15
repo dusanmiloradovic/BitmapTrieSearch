@@ -80,7 +80,7 @@ impl Dictionary {
         for (attr, search) in attrs {
             let ind = attribute_map.len();
             attribute_map.insert(attr.clone(), (ind, search));
-            reverse_attribute_map.insert(attribute_map.len() as u8, attr);
+            reverse_attribute_map.insert(ind as u8, attr);
         }
         Dictionary {
             entries: Arc::new(RwLock::new( Vec::new())),
@@ -192,6 +192,10 @@ impl Dictionary {
            let hm =&entry.0;
            for (k,v) in hm {
                let uk = *k as u8;
+               if !self.reverse_attribute_map.contains_key(&uk) {
+                   print!("Attribute {} not found in dictionary\n", uk);
+                   continue;
+               }
                ret.insert(self.reverse_attribute_map[&uk].clone(), v.clone());
            }
        }
