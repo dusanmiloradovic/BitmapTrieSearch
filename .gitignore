@@ -3,3 +3,4 @@
 /src/bin/flamegraph.svg
 /examples/net/target/
 /examples/csv/target/
+/examples/csv/frontend/node_modules
