@@ -90,7 +90,7 @@ function App() {
                 <AutocompleteCollection>
                   { ( result: SearchResult ) => (
                     <AutocompleteItem
-                      key={ result.original_entry }
+                      key={ `${result.dictionary_index}-${result.position}` }
                       value={ result.original_entry }
                       onClick={ ( ev ) => {
                         ev.preventDefault();

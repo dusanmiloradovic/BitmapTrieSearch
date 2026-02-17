@@ -132,32 +132,39 @@ impl Dictionary {
         let search_res = trie.search(&trie_term.to_uppercase(), filter_dict);
         let mut ret: Vec<SearchResult> = Vec::new();
         let entries_guard = self.entries.read().unwrap();
-        for TrieSearchResult { word, entries } in search_res {
-            for (dict_index, attribute, pos,len) in entries.entries {
-
-                if let Some(entry) = entries_guard.get(dict_index as usize) {
-                    let attr = match self.reverse_attribute_map.get(&attribute) {
-                        Some(attr) => attr.as_str(),
-                        None => "", //default attribute
-                    };
-                    if let Some(original_entry) = entry.0.get(&(attribute as usize)) {
-                        let w = translate_decode(original_entry, pos as usize, len);
-                        let sr = SearchResult {
-                            term: w.to_string(),
-                            attribute: attr.to_string(),
-                            original_entry: original_entry.to_string(),
-                            attribute_index: attribute as usize,
-                            position: pos as usize,
-                            dictionary_entry: entry.clone(),
-                            dictionary_index: dict_index as usize,
+        let mut not_empty = true;
+        let mut j =0;
+        while not_empty {
+            not_empty=false;
+            for TrieSearchResult { word, entries } in &search_res {
+                if let Some(entry)=entries.entries.get(j){
+                    not_empty=true;
+                    let (dict_index, attribute,pos,len)=entry;
+                    if let Some(entry) = entries_guard.get(*dict_index as usize) {
+                        let attr = match self.reverse_attribute_map.get(&attribute) {
+                            Some(attr) => attr.as_str(),
+                            None => "", //default attribute
                         };
-                        ret.push(sr);
-                        if !filter_dict && ret.len() >= MAX_SEARCH_RESULTS {
-                            return ret;
+                        if let Some(original_entry) = entry.0.get(&(*attribute as usize)) {
+                            let w = translate_decode(original_entry, *pos as usize, *len);
+                            let sr = SearchResult {
+                                term: w.to_string(),
+                                attribute: attr.to_string(),
+                                original_entry: original_entry.to_string(),
+                                attribute_index: *attribute as usize,
+                                position: *pos as usize,
+                                dictionary_entry: entry.clone(),
+                                dictionary_index: *dict_index as usize,
+                            };
+                            ret.push(sr);
+                            if !filter_dict && ret.len() >= MAX_SEARCH_RESULTS {
+                                return ret;
+                            }
                         }
                     }
                 }
             }
+            j=j+1;
         }
         if filter_dict{
             let encoded_search_term = translate_encode(term);
