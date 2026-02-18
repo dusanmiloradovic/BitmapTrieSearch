@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-bitmap_trie = { path = "../../" }
+dictionary_bitmap_trie = { path = "../../" }
 csv = "1.3.0"
 actix-web = "4"
 actix-cors = "0.7.1"

@@ -3,7 +3,7 @@
 version = 4
 
 [[package]]
-name = "bitmap_trie"
+name = "dictionary_bitmap_trie"
 version = "0.1.0"
 dependencies = [
  "unicode-segmentation",
@@ -25,7 +25,7 @@ checksum = "f8ca58f447f06ed17d5fc4043ce1b10dd205e060fb3ce5b979b8ed8e59ff3f79"
 name = "netexample"
 version = "0.1.0"
 dependencies = [
- "bitmap_trie",
+ "dictionary_bitmap_trie",
  "serde",
  "serde_json",
 ]

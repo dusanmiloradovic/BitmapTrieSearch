@@ -4,7 +4,7 @@ use crate::command::{
     AddDictionaryEntryResponse, Command, CreateDictionaryResponse, Response, SearchResponse,
     SearchResultItem,
 };
-use bitmap_trie::dictionary::AttributeSearch;
+use dictionary_bitmap_trie::dictionary::AttributeSearch;
 use serde::{Deserialize, Serialize};
 use std::io::{BufReader, Write};
 use std::net::{TcpListener, TcpStream};

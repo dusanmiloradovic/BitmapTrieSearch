@@ -1,6 +1,6 @@
 use actix_cors::Cors;
 use actix_web::{get, web, App, HttpResponse, HttpServer, Responder};
-use bitmap_trie::dictionary::AttributeSearch;
+use dictionary_bitmap_trie::dictionary::AttributeSearch;
 use csvexample::CsvDictionary;
 use serde::Deserialize;
 use serde::Serialize;

@@ -3,7 +3,7 @@
 version = 4
 
 [[package]]
-name = "bitmap_trie"
+name = "dictionary_bitmap_trie"
 version = "0.1.0"
 dependencies = [
  "unicode-segmentation",

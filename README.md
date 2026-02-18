@@ -1,23 +1,23 @@
-# BitmapTrie
+# Dictionary BitmapTrie
 
-A high-performance trie data structure library for efficient dictionary operations with bitmap-based encoding.
+This library for autocomplete and prefix search, backed by Bitmap Trie data structure.
+The search data is stored in "Dictionary", that defines how the data is structured.
+
 
 ## Library Structure
 
 This library provides core data structures for building fast dictionary and autocomplete systems:
 
-- **`dictionary`** - High-level dictionary abstraction with configurable attribute search modes
+- **`dictionary`** - Dictionary abstraction for defining search attributes and data structure
 - **`trie`** (internal) - Low-level bitmap trie implementation 
 - **`encoding`** (internal) - Character encoding utilities
-
-## Features
-
-- **Fast Prefix Search**: Bitmap-based trie implementation for efficient prefix searching
-- **Structured Data**: Support for dictionary entries with multiple named attributes
-- **Flexible Search Modes**: Different search behaviors per attribute (exact, multiple word, none)
-- **Memory Efficient**: Bitmap encoding reduces memory footprint
-- **Thread Safe**: Dictionary can be safely shared across threads
-
+### Dictionary
+Before using the dictionary, we have to define which attributes the data has, and how it is going to be searched
+- AttributeSearch::None means the data is not searchable, but its stored in Trie (like internal id for example)
+- AttributeSearch::Exact - attribute is searchable, but the prefix has to exactly match (for example if we have a entry "john doe", "john" will match, but "doe" will not)
+- AttributeSeach::Multiple - the text is split into words internally and searchable. Internally, the attribute is split into tuples of length 3 and stored in trie. This can be configured by changing DEFAULT_MULTIPLE_SEARCH_LENGTH. Search terms longer than this are filtered directly through dictionary
+### Encoding
+Bitmap trie data structure has a 64 bit mapping entry where each bit corresponds to a character. By default, all text is encoded to a ASCII subset of characters, and each grapheme cluster is mapped to one character. The default implementation supports only Latin scripts. To configure this, implement the Encoding trait
 ## Usage
 
 ```rust
@@ -56,23 +56,17 @@ for result in results {
 
 ## Examples
 
-See the `examples/net` directory for a complete networked dictionary service implementation demonstrating:
-
-- TCP server/client architecture
-- JSON-based communication protocol
-- Multi-threaded dictionary operations
-- Real-world usage patterns
-
-To run the network example:
+See the `examples/csv` directory for a book search example application
 
 ```bash
-cd examples/net
+cd examples/csv
 
 # Terminal 1 - Start server
-cargo run --bin server
+cargo run
 
 # Terminal 2 - Run client
-cargo run --bin client
+cd examples/csv/frontend
+npm run dev
 ```
 
 ## Building

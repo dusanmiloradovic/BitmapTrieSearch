@@ -1,4 +1,4 @@
-use bitmap_trie::dictionary::{AttributeSearch, Dictionary};
+use dictionary_bitmap_trie::dictionary::{AttributeSearch, Dictionary};
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
@@ -84,7 +84,7 @@ impl DictionaryMap {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bitmap_trie::dictionary::AttributeSearch;
+    use dictionary_bitmap_trie::dictionary::AttributeSearch;
 
     #[test]
     fn test_dictionary_map_basic_functionality() {

@@ -60,8 +60,6 @@ pub struct Trie {
     free_list: Vec<usize>,
 }
 
-// dictionary will keep the map of attributes, the
-
 impl Trie {
     pub fn new() -> Self {
         let mut t = Trie {
@@ -270,9 +268,6 @@ impl Trie {
                     curr_row = ni.index as usize;
                 }
             }
-        }
-        if term == "SHAKE"{
-          print!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n{:?}",res);
         }
         res
     }

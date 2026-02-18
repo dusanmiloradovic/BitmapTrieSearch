@@ -125,7 +125,6 @@ impl TrieEntryOp for TrieEntry {
     }
 
     fn update_terminated(&mut self, c: char, terminated: bool) {
-        // TODO add the optional dictionary index here
         let ix = idx(c);
         match self {
             TrieEntry::TrieEntryV(v) => {

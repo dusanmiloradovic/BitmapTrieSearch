@@ -243,13 +243,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "812e12b5285cc515a9c72a5c1d3b6d46a19dac5acfef5265968c166106e31dd3"
 
 [[package]]
-name = "bitmap_trie"
-version = "0.1.0"
-dependencies = [
- "unicode-segmentation",
-]
-
-[[package]]
 name = "block-buffer"
 version = "0.10.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -387,8 +380,8 @@ version = "0.1.0"
 dependencies = [
  "actix-cors",
  "actix-web",
- "bitmap_trie",
  "csv",
+ "dictionary_bitmap_trie",
  "serde",
  "serde_json",
  "tokio",
@@ -424,6 +417,13 @@ dependencies = [
  "rustc_version",
  "syn",
  "unicode-xid",
+]
+
+[[package]]
+name = "dictionary_bitmap_trie"
+version = "0.1.0"
+dependencies = [
+ "unicode-segmentation",
 ]
 
 [[package]]

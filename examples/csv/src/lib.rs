@@ -1,4 +1,4 @@
-use bitmap_trie::dictionary::{AttributeSearch, Dictionary};
+use dictionary_bitmap_trie::dictionary::{AttributeSearch, Dictionary};
 use csv::ReaderBuilder;
 
 use std::collections::HashMap;
@@ -59,7 +59,7 @@ impl CsvDictionary {
     }
 
     /// Search the dictionary
-    pub fn search(&self, term: &str) -> Vec<bitmap_trie::dictionary::SearchResult> {
+    pub fn search(&self, term: &str) -> Vec<dictionary_bitmap_trie::dictionary::SearchResult> {
         self.dictionary.search(term)
     }
 
