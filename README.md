@@ -81,8 +81,3 @@ cargo test
 # Build examples
 cd examples/net && cargo build
 ```
-
-## Dependencies
-
-- `serde` - Serialization support
-- `serde_json` - JSON serialization

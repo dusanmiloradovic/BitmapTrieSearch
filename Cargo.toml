@@ -2,6 +2,11 @@
 name = "dictionary_bitmap_trie"
 version = "0.1.0"
 edition = "2021"
+license = "MIT"
+authors = ["Dusan Miloradovic"]
+description = "Bitmap trie backed autocomplete and search"
+readme = "README.md"
+repository = "https://github.com/dusanmiloradovic/BitmapTrieSearch"
 
 [dependencies]
 unicode-segmentation = "1.12.0"
