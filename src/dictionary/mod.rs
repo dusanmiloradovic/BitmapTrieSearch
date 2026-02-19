@@ -103,7 +103,7 @@ impl Dictionary {
                     }
                     AttributeSearch::Multiple => {
                         let v = split_word(&data[k]);
-                        for (s, pos, len) in v {
+                        for (s, pos, _) in v {
                             let mut l = self.trie.write().unwrap();
                             let entries = self.entries.read().unwrap();
                             l.add_word(&s, entries.len() as u32, *u as u8, pos as u16);
@@ -128,7 +128,6 @@ impl Dictionary {
         }
         let (filter_dict, trie_term) = longest_term(term);
         let trie = self.trie.read().unwrap();
-        let uw = term.to_uppercase();
         let search_res = trie.search(&trie_term.to_uppercase(), filter_dict);
         let mut ret: Vec<SearchResult> = Vec::new();
         let entries_guard = self.entries.read().unwrap();
@@ -136,7 +135,7 @@ impl Dictionary {
         let mut j =0;
         while not_empty {
             not_empty=false;
-            for TrieSearchResult { word, entries } in &search_res {
+            for TrieSearchResult { word: _, entries } in &search_res {
                 if let Some(entry)=entries.entries.get(j){
                     not_empty=true;
                     let (dict_index, attribute,pos,len)=entry;
@@ -221,7 +220,7 @@ mod test {
             ("manufacturer".to_string(), AttributeSearch::Exact),
             ("serial_number".to_string(), AttributeSearch::None),
         ];
-        let mut d = Dictionary::new(m);
+        let  d = Dictionary::new(m);
         d.add_dictionary_entry(HashMap::from([
             ("manufacturer".to_string(), "Toyota".to_string()),
             ("car".to_string(), "Corolla".to_string()),
