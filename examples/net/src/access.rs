@@ -1,6 +1,7 @@
 use dictionary_bitmap_trie::dictionary::{AttributeSearch, Dictionary};
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
+use dictionary_bitmap_trie::constants::SearchConfig;
 
 #[derive(Debug)]
 pub struct OwnedSearchResult {
@@ -34,7 +35,7 @@ impl DictionaryMap {
             ));
         }
 
-        let dictionary = Dictionary::new(attributes);
+        let dictionary = Dictionary::new(attributes,SearchConfig::default());
         self.map
             .insert(dictionary_id.to_string(), Arc::new(RwLock::new(dictionary)));
         Ok(())

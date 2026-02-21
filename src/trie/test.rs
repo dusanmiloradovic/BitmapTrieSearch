@@ -1,7 +1,7 @@
 use super::*;
 
 fn prepare_trie() -> Trie {
-    let mut t = Trie::new();
+    let mut t = Trie::new(SearchConfig::default());
     t.add_word("dragan", 0, 0, 0);
     t.add_word("dragana", 1, 0, 0);
     t.add_word("drni", 2, 0, 0);
@@ -40,7 +40,7 @@ fn test_search_exact() {
 
 #[test]
 fn test_search_exact_basic() {
-    let mut t = Trie::new();
+    let mut t = Trie::new(SearchConfig::default());
     t.add_word("dragan", 0, 0, 0);
     let p = t
         .search("DRAGAN",false)
@@ -52,7 +52,7 @@ fn test_search_exact_basic() {
 }
 #[test]
 fn test_search_exact_basic_two() {
-    let mut t = Trie::new();
+    let mut t = Trie::new(SearchConfig::default());
     t.add_word("dragan", 0, 0, 0);
     t.add_word("dragana", 1, 0, 0);
     let p = t
@@ -187,7 +187,7 @@ fn delete_word_with_children() {
 
 #[test]
 fn reusing_trie_entry_slots() {
-    let mut t = Trie::new();
+    let mut t = Trie::new(SearchConfig::default());
     t.add_word("petar", 0, 0, 0);
     t.add_word("sestar", 1, 0, 0);
     t.add_word("prevar", 2, 0, 0);

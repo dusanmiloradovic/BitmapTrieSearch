@@ -7,7 +7,7 @@ pub use self::entry::{
 };
 use crate::encoding::idx;
 use std::collections::HashMap;
-use crate::constants::{MAX_DIRECT_ENTRIES, MAX_SEARCH_RESULTS};
+use crate::constants::{SearchConfig};
 /*
 This is the Trie implementation for contextual search.
 The primary use case is autocomplete search in context.
@@ -58,14 +58,16 @@ pub struct Trie {
     trie_entries: Vec<TrieEntry>,
     dictionary_map: HashMap<usize, DictionaryMapEntry>, //One NodeIndex to many DictionaryEntries (+ attribute)
     free_list: Vec<usize>,
+    search_config: SearchConfig
 }
 
 impl Trie {
-    pub fn new() -> Self {
+    pub fn new(search_config: SearchConfig) -> Self {
         let mut t = Trie {
             trie_entries: Vec::new(),
             dictionary_map: HashMap::new(),
             free_list: Vec::new(),
+            search_config,
         };
         let v = vec![(
             0,
@@ -188,7 +190,7 @@ impl Trie {
                 };
                 entry.add(c, ni);
                 if let TrieEntry::TrieEntryV(v) = entry {
-                    if v.0.len() >= MAX_DIRECT_ENTRIES {
+                    if v.0.len() >= self.search_config.max_direct_entries {
                         let promoted = TrieEntryG::promote(v);
                         self.trie_entries[curr_row] = TrieEntry::TrieEntryG(promoted);
                     }
@@ -241,10 +243,10 @@ impl Trie {
         let children = entry.get_all();
         let mut bfs_stack: Vec<(String, NodeIndex)> = Vec::new();
         for (c, ni) in children {
-            let w = term.to_string() + &c.to_string();
+            let w = term.to_string() + &c.to_string(); 
             bfs_stack.push((w, ni));
         }
-        while bfs_stack.len() > 0 && (ignore_max_search_results || res.len() < MAX_SEARCH_RESULTS) {
+        while bfs_stack.len() > 0 && (ignore_max_search_results || res.len() < self.search_config.max_search_results) {
             let e = bfs_stack.pop();
             match e {
                 None => break,

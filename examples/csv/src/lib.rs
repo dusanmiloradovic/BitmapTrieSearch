@@ -1,4 +1,5 @@
-use dictionary_bitmap_trie::dictionary::{AttributeSearch, Dictionary};
+use dictionary_bitmap_trie::dictionary::{AttributeSearch, Dictionary,};
+use dictionary_bitmap_trie::constants::SearchConfig;
 use csv::ReaderBuilder;
 
 use std::collections::HashMap;
@@ -14,7 +15,7 @@ pub struct CsvDictionary {
 impl CsvDictionary {
     /// Create a new CSV dictionary with specified attribute configurations
     pub fn new(attributes: Vec<(String, AttributeSearch)>) -> Self {
-        let dictionary = Dictionary::new(attributes);
+        let dictionary = Dictionary::new(attributes, SearchConfig::default());
         Self { dictionary }
     }
 

@@ -1,10 +1,9 @@
+use crate::constants::{SearchConfig};
 use crate::encoding::{translate_decode, translate_encode};
 use crate::trie::{Trie, TrieSearchResult};
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
-use crate::constants::{MAX_SEARCH_RESULTS, MIN_TERM_LENGTH};
 
-const DEFAULT_MULTIPLE_SEARCH_LENGTH: usize = 3;
 
 #[derive(Debug,Clone)]
 pub struct DictionaryEntry(HashMap<usize, String>);
@@ -25,6 +24,7 @@ pub struct Dictionary {
     attribute_map: HashMap<String, (usize, AttributeSearch)>,
     reverse_attribute_map: HashMap<u8, String>,
     trie: Arc<RwLock<Trie>>,
+    config: SearchConfig,
 }
 
 pub struct SearchResult {
@@ -37,44 +37,10 @@ pub struct SearchResult {
     pub dictionary_index: usize, // once the search is done, we can use this to get the dictionary entry
 }
 
-// Trie save up to DEFAULT_MULTIPLE_SEARCH_LENGTH words, after that we need to filter the results here
-fn longest_term(word: &str) -> (bool, String) {
-    let ws = word.trim().split_whitespace();
-    if ws.clone().count() <= DEFAULT_MULTIPLE_SEARCH_LENGTH {
-        return (false, word.to_string());
-    }
-    let w = ws.take(DEFAULT_MULTIPLE_SEARCH_LENGTH).collect::<Vec<_>>().join(" ");
-   (true, w)
-}
 
-fn split_word(word: &str) -> Vec<(String, usize, u16)> { // returns the byte boundary position, it will be used to find the word in the original string(slice from)
-    let mut ret = Vec::new();
-    let z = word.split_whitespace().collect::<Vec<&str>>();
-    let mut position = 0;
-    for j in 0..z.len() {
-        // Find the position of this word part in the original string
-        if let Some(byte_pos) = word[position..].find(z[j]) {
-            position = word[..position + byte_pos].len();
-        }
-        
-        if j + DEFAULT_MULTIPLE_SEARCH_LENGTH < z.len() {
-            let s = z[j..j + DEFAULT_MULTIPLE_SEARCH_LENGTH].join(" ");
-            let len = s.len() as u16;
-            ret.push((s, position,len));
-        } else {
-            let s = z[j..].join(" ");
-            let len = s.len() as u16;
-            ret.push((s, position,len));
-        }
-        
-        // Move position past the current word (in bytes)
-        position += z[j].len();
-    }
-    ret
-}
 
 impl Dictionary {
-    pub fn new(attrs: Vec<(String, AttributeSearch)>) -> Dictionary {
+    pub fn new(attrs: Vec<(String, AttributeSearch)>, search_config: SearchConfig) -> Dictionary {
         let mut attribute_map = HashMap::new();
         let mut reverse_attribute_map: HashMap<u8, String> = HashMap::new();
         for (attr, search) in attrs {
@@ -86,8 +52,44 @@ impl Dictionary {
             entries: Arc::new(RwLock::new( Vec::new())),
             attribute_map,
             reverse_attribute_map,
-            trie: Arc::new(RwLock::new(Trie::new())),
+            trie: Arc::new(RwLock::new(Trie::new(search_config.clone()))),
+            config: search_config,
         }
+    }
+    // Trie save up to DEFAULT_MULTIPLE_SEARCH_LENGTH words, after that we need to filter the results here
+    fn longest_term(&self,word: &str) -> (bool, String) {
+        let ws = word.trim().split_whitespace();
+        if ws.clone().count() <= self.config.default_multiple_search_length {
+            return (false, word.to_string());
+        }
+        let w = ws.take(self.config.default_multiple_search_length ).collect::<Vec<_>>().join(" ");
+        (true, w)
+    }
+
+    fn split_word(&self,word: &str) -> Vec<(String, usize, u16)> { // returns the byte boundary position, it will be used to find the word in the original string(slice from)
+        let mut ret = Vec::new();
+        let z = word.split_whitespace().collect::<Vec<&str>>();
+        let mut position = 0;
+        for j in 0..z.len() {
+            // Find the position of this word part in the original string
+            if let Some(byte_pos) = word[position..].find(z[j]) {
+                position = word[..position + byte_pos].len();
+            }
+
+            if j + self.config.default_multiple_search_length  < z.len() {
+                let s = z[j..j + self.config.default_multiple_search_length ].join(" ");
+                let len = s.len() as u16;
+                ret.push((s, position,len));
+            } else {
+                let s = z[j..].join(" ");
+                let len = s.len() as u16;
+                ret.push((s, position,len));
+            }
+
+            // Move position past the current word (in bytes)
+            position += z[j].len();
+        }
+        ret
     }
     pub fn add_dictionary_entry(&self, data: HashMap<String, String>) {
         let mut m: HashMap<usize, String> = HashMap::new();
@@ -102,7 +104,7 @@ impl Dictionary {
                         l.add_word(&data[k], entries.len() as u32, *u as u8, 0);
                     }
                     AttributeSearch::Multiple => {
-                        let v = split_word(&data[k]);
+                        let v = self.split_word(&data[k]);
                         for (s, pos, _) in v {
                             let mut l = self.trie.write().unwrap();
                             let entries = self.entries.read().unwrap();
@@ -123,10 +125,10 @@ impl Dictionary {
         // in the underlying trie, we save max of DEFAULT_MULTIPLE_SEARCH_LENGTH words
         // if the term has more words, we need to get all the results from the trie for the DEFAULT_MULTIPLE_SEARCH_LENGTH words
         // and filter them
-        if term.len() < MIN_TERM_LENGTH {
+        if term.len() < self.config.min_term_length {
             return Vec::new();
         }
-        let (filter_dict, trie_term) = longest_term(term);
+        let (filter_dict, trie_term) = self.longest_term(term);
         let trie = self.trie.read().unwrap();
         let search_res = trie.search(&trie_term.to_uppercase(), filter_dict);
         let mut ret: Vec<SearchResult> = Vec::new();
@@ -156,7 +158,7 @@ impl Dictionary {
                                 dictionary_index: *dict_index as usize,
                             };
                             ret.push(sr);
-                            if !filter_dict && ret.len() >= MAX_SEARCH_RESULTS {
+                            if !filter_dict && ret.len() >= self.config.max_search_results {
                                 return ret;
                             }
                         }
@@ -182,7 +184,7 @@ impl Dictionary {
                         dictionary_index: sr.dictionary_index,
                     };
                     fitered_res.push(new_sr);
-                    if fitered_res.len() >= MAX_SEARCH_RESULTS {
+                    if fitered_res.len() >= self.config.max_search_results {
                         return fitered_res;
                     }
                 }
@@ -211,7 +213,8 @@ impl Dictionary {
 
 #[cfg(test)]
 mod test {
-    use crate::dictionary::{split_word, AttributeSearch, Dictionary};
+    use crate::constants::SearchConfig;
+    use crate::dictionary::{AttributeSearch, Dictionary};
     use std::collections::HashMap;
 
     fn prepare_dictionary() -> Dictionary {
@@ -220,7 +223,7 @@ mod test {
             ("manufacturer".to_string(), AttributeSearch::Exact),
             ("serial_number".to_string(), AttributeSearch::None),
         ];
-        let  d = Dictionary::new(m);
+        let  d = Dictionary::new(m, SearchConfig::default());
         d.add_dictionary_entry(HashMap::from([
             ("manufacturer".to_string(), "Toyota".to_string()),
             ("car".to_string(), "Corolla".to_string()),
@@ -245,8 +248,9 @@ mod test {
     }
     #[test]
     fn test_split_word() {
+        let d = prepare_dictionary();
         let w = "ab bc cd ef gh kl";
-        let g = split_word(w);
+        let g = d.split_word(w);
         let expected: Vec<(&str, usize)> = vec![
             ("ab bc cd", 0),
             ("bc cd ef", 3),
