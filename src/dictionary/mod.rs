@@ -1,11 +1,10 @@
-use crate::constants::{SearchConfig};
+use crate::constants::SearchConfig;
 use crate::encoding::{translate_decode, translate_encode};
 use crate::trie::{Trie, TrieSearchResult};
 use std::collections::HashMap;
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, Mutex, RwLock};
 
-
-#[derive(Debug,Clone)]
+#[derive(Debug, Clone)]
 pub struct DictionaryEntry(HashMap<usize, String>);
 // each attribute of a dictionaryentry is one string in a vector, the order is defined in the dictionary
 // attribute is mapped to a usize, that is a position in the vector
@@ -25,6 +24,7 @@ pub struct Dictionary {
     reverse_attribute_map: HashMap<u8, String>,
     trie: Arc<RwLock<Trie>>,
     config: SearchConfig,
+    free_list: Arc<Mutex<Vec<usize>>>,
 }
 
 pub struct SearchResult {
@@ -37,8 +37,6 @@ pub struct SearchResult {
     pub dictionary_index: usize, // once the search is done, we can use this to get the dictionary entry
 }
 
-
-
 impl Dictionary {
     pub fn new(attrs: Vec<(String, AttributeSearch)>, search_config: SearchConfig) -> Dictionary {
         let mut attribute_map = HashMap::new();
@@ -49,24 +47,29 @@ impl Dictionary {
             reverse_attribute_map.insert(ind as u8, attr);
         }
         Dictionary {
-            entries: Arc::new(RwLock::new( Vec::new())),
+            entries: Arc::new(RwLock::new(Vec::new())),
             attribute_map,
             reverse_attribute_map,
             trie: Arc::new(RwLock::new(Trie::new(search_config.clone()))),
             config: search_config,
+            free_list: Arc::new(Mutex::new(Vec::new())),
         }
     }
     // Trie save up to DEFAULT_MULTIPLE_SEARCH_LENGTH words, after that we need to filter the results here
-    fn longest_term(&self,word: &str) -> (bool, String) {
+    fn longest_term(&self, word: &str) -> (bool, String) {
         let ws = word.trim().split_whitespace();
         if ws.clone().count() <= self.config.default_multiple_search_length {
             return (false, word.to_string());
         }
-        let w = ws.take(self.config.default_multiple_search_length ).collect::<Vec<_>>().join(" ");
+        let w = ws
+            .take(self.config.default_multiple_search_length)
+            .collect::<Vec<_>>()
+            .join(" ");
         (true, w)
     }
 
-    fn split_word(&self,word: &str) -> Vec<(String, usize, u16)> { // returns the byte boundary position, it will be used to find the word in the original string(slice from)
+    fn split_word(&self, word: &str) -> Vec<(String, usize, u16)> {
+        // returns the byte boundary position, it will be used to find the word in the original string(slice from)
         let mut ret = Vec::new();
         let z = word.split_whitespace().collect::<Vec<&str>>();
         let mut position = 0;
@@ -76,14 +79,14 @@ impl Dictionary {
                 position = word[..position + byte_pos].len();
             }
 
-            if j + self.config.default_multiple_search_length  < z.len() {
-                let s = z[j..j + self.config.default_multiple_search_length ].join(" ");
+            if j + self.config.default_multiple_search_length < z.len() {
+                let s = z[j..j + self.config.default_multiple_search_length].join(" ");
                 let len = s.len() as u16;
-                ret.push((s, position,len));
+                ret.push((s, position, len));
             } else {
                 let s = z[j..].join(" ");
                 let len = s.len() as u16;
-                ret.push((s, position,len));
+                ret.push((s, position, len));
             }
 
             // Move position past the current word (in bytes)
@@ -93,6 +96,14 @@ impl Dictionary {
     }
     pub fn add_dictionary_entry(&self, data: HashMap<String, String>) {
         let mut m: HashMap<usize, String> = HashMap::new();
+        let entries = self.entries.read().unwrap();
+        let mut dictionary_pos = entries.len();
+        let mut fl = self.free_list.lock().unwrap();
+        let mut reused = false;
+        if fl.len() > 0 {
+            dictionary_pos = fl.pop().unwrap();
+            reused = true;
+        }
         data.keys().for_each(|k| {
             if let Some((u, attr_s)) = self.attribute_map.get(k) {
                 m.insert(*u, data[k].clone());
@@ -100,15 +111,13 @@ impl Dictionary {
                     AttributeSearch::None => (),
                     AttributeSearch::Exact => {
                         let mut l = self.trie.write().unwrap();
-                        let entries = self.entries.read().unwrap();
-                        l.add_word(&data[k], entries.len() as u32, *u as u8, 0);
+                        l.add_word(&data[k], dictionary_pos as u32, *u as u8, 0);
                     }
                     AttributeSearch::Multiple => {
                         let v = self.split_word(&data[k]);
                         for (s, pos, _) in v {
                             let mut l = self.trie.write().unwrap();
-                            let entries = self.entries.read().unwrap();
-                            l.add_word(&s, entries.len() as u32, *u as u8, pos as u16);
+                            l.add_word(&s, dictionary_pos as u32, *u as u8, pos as u16);
                         }
                     }
                 }
@@ -118,7 +127,11 @@ impl Dictionary {
             return;
         }
         let mut entries = self.entries.write().unwrap();
-        entries.push(DictionaryEntry(m));
+        if reused {
+            entries[dictionary_pos] = DictionaryEntry(m);
+        }else {
+            entries.push(DictionaryEntry(m));
+        }
     }
     pub fn search(&self, term: &str) -> Vec<SearchResult> {
         // term is a search term , consists of words separated by whitespace
@@ -134,13 +147,13 @@ impl Dictionary {
         let mut ret: Vec<SearchResult> = Vec::new();
         let entries_guard = self.entries.read().unwrap();
         let mut not_empty = true;
-        let mut j =0;
+        let mut j = 0;
         while not_empty {
-            not_empty=false;
+            not_empty = false;
             for TrieSearchResult { word: _, entries } in &search_res {
-                if let Some(entry)=entries.entries.get(j){
-                    not_empty=true;
-                    let (dict_index, attribute,pos,len)=entry;
+                if let Some(entry) = entries.entries.get(j) {
+                    not_empty = true;
+                    let (dict_index, attribute, pos, len) = entry;
                     if let Some(entry) = entries_guard.get(*dict_index as usize) {
                         let attr = match self.reverse_attribute_map.get(&attribute) {
                             Some(attr) => attr.as_str(),
@@ -165,9 +178,9 @@ impl Dictionary {
                     }
                 }
             }
-            j=j+1;
+            j = j + 1;
         }
-        if filter_dict{
+        if filter_dict {
             let encoded_search_term = translate_encode(term);
             let mut fitered_res: Vec<SearchResult> = Vec::new();
             for sr in ret {
@@ -191,23 +204,50 @@ impl Dictionary {
             }
             return fitered_res;
         }
-       ret
+        ret
     }
 
     pub fn get(&self, index: usize) -> HashMap<String, String> {
         let mut ret = HashMap::new();
-       if let Some(entry) = self.entries.read().unwrap().get(index){
-           let hm =&entry.0;
-           for (k,v) in hm {
-               let uk = *k as u8;
-               if !self.reverse_attribute_map.contains_key(&uk) {
-                   print!("Attribute {} not found in dictionary\n", uk);
-                   continue;
-               }
-               ret.insert(self.reverse_attribute_map[&uk].clone(), v.clone());
-           }
-       }
+        if let Some(entry) = self.entries.read().unwrap().get(index) {
+            let hm = &entry.0;
+            for (k, v) in hm {
+                let uk = *k as u8;
+                if !self.reverse_attribute_map.contains_key(&uk) {
+                    print!("Attribute {} not found in dictionary\n", uk);
+                    continue;
+                }
+                ret.insert(self.reverse_attribute_map[&uk].clone(), v.clone());
+            }
+        }
         ret
+    }
+
+    pub fn delete(&mut self, index: usize) {
+        let entries = self.entries.write().unwrap();
+        let mut trie = self.trie.write().unwrap();
+        if let Some(entry) = entries.get(index) {
+            let hm = &entry.0;
+            for (k, v) in hm {
+                let uk = *k as u8;
+                if let Some(str) = self.reverse_attribute_map.get(&uk){
+                    if let Some(attrs) = self.attribute_map.get(str){
+                        match attrs.1 {
+                            AttributeSearch::None => (),
+                            AttributeSearch::Exact => trie.delete_word(&v, index as u32, uk),
+                            AttributeSearch::Multiple => {
+                                let v = self.split_word(&v);
+                                for (s, _, _) in v {
+                                    trie.delete_word(&s, index as u32, uk);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        let mut fl = self.free_list.lock().unwrap();
+        fl.push(index);
     }
 }
 
@@ -223,7 +263,7 @@ mod test {
             ("manufacturer".to_string(), AttributeSearch::Exact),
             ("serial_number".to_string(), AttributeSearch::None),
         ];
-        let  d = Dictionary::new(m, SearchConfig::default());
+        let d = Dictionary::new(m, SearchConfig::default());
         d.add_dictionary_entry(HashMap::from([
             ("manufacturer".to_string(), "Toyota".to_string()),
             ("car".to_string(), "Corolla".to_string()),
@@ -261,7 +301,7 @@ mod test {
         ];
         assert_eq!(
             g.iter()
-                .map(|(s, pos,_)| (s.as_str(), *pos))
+                .map(|(s, pos, _)| (s.as_str(), *pos))
                 .collect::<Vec<_>>(),
             expected
         );
