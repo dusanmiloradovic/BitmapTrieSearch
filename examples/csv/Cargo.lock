@@ -421,7 +421,7 @@ dependencies = [
 
 [[package]]
 name = "dictionary_bitmap_trie"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "unicode-segmentation",
 ]

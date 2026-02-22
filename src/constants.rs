@@ -1,3 +1,5 @@
+use crate::encoding::Encoding;
+
 /// Configuration for search behavior. All fields have sensible defaults.
 #[derive(Debug, Clone)]
 pub struct SearchConfig {

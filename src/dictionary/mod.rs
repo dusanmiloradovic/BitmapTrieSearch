@@ -2,7 +2,7 @@ use crate::constants::SearchConfig;
 use crate::encoding::{translate_decode, translate_encode};
 use crate::trie::{Trie, TrieSearchResult};
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::{Mutex, RwLock};
 
 #[derive(Debug, Clone)]
 pub struct DictionaryEntry(HashMap<usize, String>);
@@ -19,12 +19,12 @@ pub enum AttributeSearch {
 // in other words the search is for the 3 consecutive words(we can define the different default)
 
 pub struct Dictionary {
-    entries: Arc<RwLock<Vec<DictionaryEntry>>>,
+    entries: RwLock<Vec<DictionaryEntry>>,
     attribute_map: HashMap<String, (usize, AttributeSearch)>,
     reverse_attribute_map: HashMap<u8, String>,
-    trie: Arc<RwLock<Trie>>,
+    trie: RwLock<Trie>,
     config: SearchConfig,
-    free_list: Arc<Mutex<Vec<usize>>>,
+    free_list: Mutex<Vec<usize>>,
 }
 
 pub struct SearchResult {
@@ -47,12 +47,12 @@ impl Dictionary {
             reverse_attribute_map.insert(ind as u8, attr);
         }
         Dictionary {
-            entries: Arc::new(RwLock::new(Vec::new())),
+            entries: RwLock::new(Vec::new()),
             attribute_map,
             reverse_attribute_map,
-            trie: Arc::new(RwLock::new(Trie::new(search_config.clone()))),
+            trie: RwLock::new(Trie::new(search_config.clone())),
             config: search_config,
-            free_list: Arc::new(Mutex::new(Vec::new())),
+            free_list: Mutex::new(Vec::new()),
         }
     }
     // Trie save up to DEFAULT_MULTIPLE_SEARCH_LENGTH words, after that we need to filter the results here
@@ -96,7 +96,7 @@ impl Dictionary {
     }
     pub fn add_dictionary_entry(&self, data: HashMap<String, String>) {
         let mut m: HashMap<usize, String> = HashMap::new();
-        let entries = self.entries.read().unwrap();
+        let mut entries = self.entries.write().unwrap();
         let mut dictionary_pos = entries.len();
         let mut fl = self.free_list.lock().unwrap();
         let mut reused = false;
@@ -126,7 +126,7 @@ impl Dictionary {
         if m.len() == 0 {
             return;
         }
-        let mut entries = self.entries.write().unwrap();
+
         if reused {
             entries[dictionary_pos] = DictionaryEntry(m);
         }else {
@@ -328,7 +328,7 @@ mod test {
     #[test]
     fn test_search() {
         let d = prepare_dictionary();
-        let z = d.search("CO");
+        let z = d.search("COR");
         assert_eq!(z.len(), 1);
         assert_eq!(z[0].term, "Corolla");
     }
@@ -336,14 +336,14 @@ mod test {
     #[test]
     fn test_multiple_entries() {
         let d = prepare_dictionary();
-        let z = d.search("TO");
+        let z = d.search("TOY");
         assert_eq!(z.len(), 2);
     }
 
     #[test]
     fn test_case_sensitivity() {
         let d = prepare_dictionary();
-        let z = d.search("to");
+        let z = d.search("toy");
         assert_eq!(z.len(), 2);
     }
 }
